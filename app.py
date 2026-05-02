@@ -269,115 +269,133 @@ def get_dcx_prices():
 
 def get_coin_metadata():
     """
-    Build coin metadata entirely from CoinDCX public APIs — no CoinGecko needed.
+    Build coin metadata entirely from CoinDCX ticker — only public endpoint
+    that works without IP restrictions.
 
-    Sources:
-      1. GET /exchange/v1/markets_details  — coin name, symbol, base currency
-      2. GET /exchange/ticker              — live price, 24h change, high, low, volume
-      3. CryptoCompare image CDN           — coin logos (free, no rate limiting)
+    GET /exchange/ticker returns all pairs including price, 24h change,
+    high, low, volume. We filter to INR pairs only.
 
-    We only include INR pairs so all prices are in ₹.
-    Market cap is not available from CoinDCX — shown as "—" in templates.
+    Coin names are derived from the symbol (e.g. "BTC" → "Bitcoin") using
+    a built-in symbol→name map. Unknown coins just use their symbol as name.
 
-    Cached for 5 minutes (balances freshness vs API load).
-
-    Returns:
-        dict — { "BTC": { id, name, symbol, image, ... }, ... } keyed by DCX symbol
+    Cached for 5 minutes.
     """
     with _cache_lock:
-        if time.time() - META_CACHE["timestamp"] < 300:   # 5 min cache
+        if time.time() - META_CACHE["timestamp"] < 300:
             return META_CACHE["data"]
 
-    # ── Step 1: Get market details (name, base currency) ──
+    # ── Fetch ticker ──────────────────────────────────────
     try:
         res = requests.get(
-            "https://api.coindcx.com/exchange/v1/markets_details",
-            timeout=15
-        )
-        res.raise_for_status()
-        markets = res.json()
-    except Exception as e:
-        app.logger.warning("CoinDCX markets_details error: %s", e)
-        return META_CACHE["data"]
-
-    # ── Step 2: Get live ticker data ──
-    try:
-        res2 = requests.get(
             "https://api.coindcx.com/exchange/ticker",
             timeout=10
         )
-        res2.raise_for_status()
-        tickers = res2.json()
+        res.raise_for_status()
+        tickers = res.json()
     except Exception as e:
         app.logger.warning("CoinDCX ticker error: %s", e)
         return META_CACHE["data"]
 
-    # Build ticker map keyed by market (e.g. "BTCINR")
-    ticker_map = {}
-    for t in tickers:
-        market = t.get("market", "")
-        if market.endswith("INR"):
-            ticker_map[market] = t
+    # ── Symbol → Name map (top 200 coins) ─────────────────
+    NAME_MAP = {
+        "BTC":"Bitcoin","ETH":"Ethereum","USDT":"Tether","BNB":"BNB",
+        "SOL":"Solana","XRP":"XRP","USDC":"USD Coin","ADA":"Cardano",
+        "AVAX":"Avalanche","DOGE":"Dogecoin","TRX":"TRON","DOT":"Polkadot",
+        "LINK":"Chainlink","MATIC":"Polygon","LTC":"Litecoin","SHIB":"Shiba Inu",
+        "UNI":"Uniswap","ATOM":"Cosmos","XLM":"Stellar","ETC":"Ethereum Classic",
+        "BCH":"Bitcoin Cash","APT":"Aptos","FIL":"Filecoin","HBAR":"Hedera",
+        "ARB":"Arbitrum","OP":"Optimism","NEAR":"NEAR Protocol","INJ":"Injective",
+        "IMX":"Immutable","MKR":"Maker","AAVE":"Aave","SUI":"Sui","SEI":"Sei",
+        "SAND":"The Sandbox","MANA":"Decentraland","AXS":"Axie Infinity",
+        "THETA":"Theta Network","VET":"VeChain","GRT":"The Graph",
+        "ALGO":"Algorand","EGLD":"MultiversX","XTZ":"Tezos","FLOW":"Flow",
+        "EOS":"EOS","ZEC":"Zcash","DASH":"Dash","XMR":"Monero",
+        "NEO":"NEO","IOTA":"IOTA","ONT":"Ontology","ZIL":"Zilliqa",
+        "BAT":"Basic Attention Token","ENJ":"Enjin Coin","CHZ":"Chiliz",
+        "HOT":"Holo","STORJ":"Storj","CRV":"Curve DAO","COMP":"Compound",
+        "SNX":"Synthetix","YFI":"yearn.finance","SUSHI":"SushiSwap",
+        "1INCH":"1inch","RUNE":"THORChain","CAKE":"PancakeSwap",
+        "LUNA":"Terra Classic","FTM":"Fantom","ONE":"Harmony",
+        "ROSE":"Oasis Network","ICX":"ICON","ZRX":"0x Protocol",
+        "BAND":"Band Protocol","KNC":"Kyber Network","BAL":"Balancer",
+        "REN":"Ren","LRC":"Loopring","PERP":"Perpetual Protocol",
+        "DYDX":"dYdX","WOO":"WOO Network","GMT":"STEPN","APE":"ApeCoin",
+        "GAL":"Galxe","STX":"Stacks","MINA":"Mina Protocol",
+        "GALA":"Gala","ILV":"Illuvium","YGG":"Yield Guild Games",
+        "JASMY":"JasmyCoin","CELR":"Celer Network","ANKR":"Ankr",
+        "SKL":"SKALE","NKN":"NKN","OGN":"Origin Protocol","FET":"Fetch.ai",
+        "OCEAN":"Ocean Protocol","RLC":"iExec RLC","CTSI":"Cartesi",
+        "MASK":"Mask Network","POND":"Marlin","BICO":"Biconomy",
+        "GLMR":"Moonbeam","MOVR":"Moonriver","KSM":"Kusama",
+        "CFX":"Conflux","KAVA":"Kava","CELO":"Celo","SPELL":"Spell Token",
+        "CVX":"Convex Finance","FXS":"Frax Share","LQTY":"Liquity",
+        "BLUR":"Blur","MAGIC":"MAGIC","HFT":"Hashflow","HOOK":"Hooked Protocol",
+        "AGIX":"SingularityNET","RNDR":"Render","WLD":"Worldcoin",
+        "TIA":"Celestia","PYTH":"Pyth Network","JTO":"Jito",
+        "MANTA":"Manta Network","ALT":"AltLayer","DYM":"Dymension",
+        "PIXEL":"Pixels","PORTAL":"Portal","STRK":"Starknet","BEAM":"Beam",
+        "RON":"Ronin","ETHFI":"Ether.fi","ENA":"Ethena","W":"Wormhole",
+        "ONDO":"Ondo","TON":"Toncoin","NOT":"Notcoin","BRETT":"Brett",
+        "POPCAT":"Popcat","MEW":"cat in a dogs world","BOME":"Book of Meme",
+        "WIF":"dogwifhat","BONK":"Bonk","PEPE":"Pepe","FLOKI":"Floki",
+        "DOG":"Dog","SATS":"1000SATS","ORDI":"ORDI","RATS":"Rats",
+        "NEIRO":"Neiro","HMSTR":"Hamster Kombat","CATI":"Catizen",
+        "DOGS":"Dogs","MAJOR":"Major","ICE":"ICE","PNUT":"Peanut the Squirrel",
+        "ACT":"Act I : The AI Prophecy","GOAT":"Goat","MOODENG":"Moodeng",
+        "CHILLGUY":"Chillguy","VIRTUAL":"Virtuals Protocol","AI16Z":"ai16z",
+        "ZEREBRO":"Zerebro","GRIFFAIN":"Griffain","FARTCOIN":"Fartcoin",
+    }
 
-    # ── Step 3: Build metadata map ──
-    # Only include INR spot markets, deduplicate by base symbol
-    seen_symbols = set()
-    meta_map     = {}
+    # ── Build metadata from INR pairs only ────────────────
+    seen    = set()
+    meta_map = {}
 
-    # Sort by volume descending so highest-volume coin wins on duplicates
-    inr_markets = [
-        m for m in markets
-        if m.get("pair", "").endswith("INR")
-        and m.get("status") == "active"
-        and m.get("coind_code")  # has a valid symbol
+    # Sort by volume desc so highest-volume coin wins duplicates
+    inr_tickers = [
+        t for t in tickers
+        if str(t.get("market","")).endswith("INR")
     ]
+    inr_tickers.sort(key=lambda t: float(t.get("volume",0) or 0), reverse=True)
 
-    for m in inr_markets:
-        symbol   = m.get("base_currency_short_name", "").upper()  # e.g. "BTC"
-        name     = m.get("base_currency_name", symbol)            # e.g. "Bitcoin"
-        pair     = m.get("pair", "")                              # e.g. "BTCINR"
-        coind_cd = m.get("coind_code", symbol).upper()
-
-        if not symbol or symbol in seen_symbols:
+    for t in inr_tickers:
+        market = t.get("market","")                        # e.g. "BTCINR"
+        symbol = market[:-3].upper() if market.endswith("INR") else ""
+        if not symbol or symbol in seen:
             continue
-        seen_symbols.add(symbol)
+        seen.add(symbol)
 
-        # Get live ticker for this pair
-        t = ticker_map.get(pair, {})
+        name   = NAME_MAP.get(symbol, symbol)
+        price  = float(t.get("last_price", 0) or 0)
+        change = float(t.get("change_24_hour", 0) or 0)
+        high   = float(t.get("high",  0) or 0)
+        low    = float(t.get("low",   0) or 0)
+        volume = float(t.get("volume",0) or 0)
 
-        price     = float(t.get("last_price",     0) or 0)
-        change    = float(t.get("change_24_hour", 0) or 0)
-        high      = float(t.get("high",           0) or 0)
-        low       = float(t.get("low",            0) or 0)
-        volume    = float(t.get("volume",         0) or 0)
-
-        # CryptoCompare logo — reliable CDN, no auth needed
-        image = f"https://www.cryptocompare.com/media/generate/png/icon/{symbol.lower()}"
+        image = f"https://assets.coincap.io/assets/icons/{symbol.lower()}@2x.png"
 
         meta_map[symbol] = {
-            "id":                 symbol,           # use symbol as ID (e.g. "BTC")
+            "id":                 symbol,
             "name":               name,
             "symbol":             symbol,
             "image":              image,
-            "market_cap":         0,                # not available from CoinDCX
+            "market_cap":         0,
             "market_cap_rank":    0,
-            "ath":                0,
-            "atl":                0,
+            "ath":                0, "atl": 0,
             "circulating_supply": 0,
             "total_supply":       0,
-            "sparkline":          [],               # fetched separately via candles
+            "sparkline":          [],
             "cg_price":           price,
             "cg_change_24h":      change,
             "cg_volume":          volume,
             "cg_high":            high,
             "cg_low":             low,
-            "pair":               pair,             # e.g. "BTCINR" — for candles API
+            "pair":               market,
         }
 
     with _cache_lock:
         META_CACHE["data"]      = meta_map
         META_CACHE["timestamp"] = time.time()
-    app.logger.info("CoinDCX metadata built — %d INR coins", len(meta_map))
+    app.logger.info("CoinDCX ticker metadata built — %d INR coins", len(meta_map))
     return meta_map
 
 
