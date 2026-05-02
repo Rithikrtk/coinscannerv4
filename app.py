@@ -846,6 +846,54 @@ def coins():
     )
 
 
+@app.route("/api/debug/dcx")
+def debug_dcx():
+    """
+    Debug endpoint — tests CoinDCX API connectivity from Render's server.
+    Remove this before going to production.
+    """
+    import traceback
+    results = {}
+
+    # Test 1: ticker
+    try:
+        r = requests.get("https://api.coindcx.com/exchange/ticker", timeout=10)
+        results["ticker"] = {
+            "status": r.status_code,
+            "count":  len(r.json()) if r.ok else 0,
+            "sample": r.json()[0] if r.ok else r.text[:200],
+        }
+    except Exception as e:
+        results["ticker"] = {"error": str(e)}
+
+    # Test 2: markets_details
+    try:
+        r2 = requests.get("https://api.coindcx.com/exchange/v1/markets_details", timeout=10)
+        results["markets_details"] = {
+            "status": r2.status_code,
+            "count":  len(r2.json()) if r2.ok else 0,
+            "error":  r2.text[:200] if not r2.ok else None,
+        }
+    except Exception as e:
+        results["markets_details"] = {"error": str(e)}
+
+    # Test 3: candles
+    try:
+        r3 = requests.get(
+            "https://public.coindcx.com/market_data/candles/",
+            params={"pair": "B-BTC_INR", "interval": "1d", "limit": 3},
+            timeout=10,
+        )
+        results["candles"] = {
+            "status": r3.status_code,
+            "data":   r3.json() if r3.ok else r3.text[:200],
+        }
+    except Exception as e:
+        results["candles"] = {"error": str(e)}
+
+    return jsonify(results)
+
+
 @app.route("/api/coins")
 def api_coins():
     """
