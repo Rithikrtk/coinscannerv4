@@ -1,0 +1,683 @@
+/* =====================================================
+   LAYOUT.CSS — App Shell, Header, Sidebar, Footer
+   ===================================================== */
+
+/* =====================================================
+   1. APP CONTAINER
+   ===================================================== */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    overflow: visible;
+}
+
+/* =====================================================
+   2. HEADER — White, premium
+   ===================================================== */
+.app-header {
+    height: var(--header-height);
+    flex-shrink: 0;
+    background: #ffffff;
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 1px 8px rgba(57,117,234,0.06);
+}
+
+.header-inner {
+    max-width: var(--max-content-width);
+    margin: 0 auto;
+    height: 100%;
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* =====================================================
+   3. APP BODY
+   ===================================================== */
+.app-body {
+    display: flex;
+    flex: 1;
+    max-width: var(--max-content-width);
+    margin: 0 auto;
+    width: 100%;
+    align-items: flex-start;
+}
+
+/* Home page — remove main-content padding; home-wrap controls its own max-width */
+body.page-home .app-body {
+    max-width: 100%;
+    width: 100%;
+    margin: 0 auto;
+}
+
+body.page-home .app-body .main-content {
+    padding: 0;
+}
+
+.main-content {
+    flex: 1;
+    min-height: 0;
+    overflow: visible;
+    overflow-y: auto;
+    padding: 32px 48px;
+}
+
+/* =====================================================
+   4. SIDEBAR
+   ===================================================== */
+.sidebar {
+    background: #ffffff;
+    border-right: 1px solid var(--border-color);
+    align-self: flex-start;
+    position: sticky;
+    top: 90px;
+    width: 220px;
+    flex-shrink: 0;
+}
+
+.sidebar-card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 24px;
+    position: sticky;
+    top: 90px;
+    z-index: 0;
+}
+
+/* =====================================================
+   5. FOOTER
+   ===================================================== */
+.app-footer {
+    background: #020617;
+    color: #cbd5e1;
+    padding: 60px 20px 20px;
+    margin-top: 60px;
+    position: relative;
+    z-index: 10;
+}
+
+.footer-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 40px;
+}
+
+.footer-brand h3 { font-size: 18px; margin-bottom: 10px; }
+.footer-brand p  { font-size: 14px; color: #94a3b8; margin-bottom: 18px; }
+
+.footer-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: #fff;
+    margin-bottom: 14px;
+}
+
+.footer-logo img        { width: 34px; height: 34px; border-radius: 9px; }
+.footer-logo-text       { display: flex; flex-direction: column; gap: 2px; }
+.footer-logo-name       { font-size: 15px; font-weight: 800; letter-spacing: 1px; color: #ffffff; line-height: 1; font-family: 'Syne', sans-serif; }
+.footer-logo-tagline    { font-size: 10px; font-weight: 400; color: rgba(255,255,255,0.4); letter-spacing: 0.2px; line-height: 1; }
+
+.footer-social          { display: flex; gap: 12px; }
+
+.footer-social a {
+    width: 36px; height: 36px;
+    background: #111827;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px;
+    color: #cbd5e1;
+    transition: 0.2s ease;
+}
+
+.footer-social a:hover  { background: var(--primary); color: #fff; }
+
+.footer-col h4          { font-size: 13px; margin-bottom: 14px; color: #ffffff; letter-spacing: 0.5px; font-family: 'DM Sans', sans-serif; }
+
+.footer-col a {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #94a3b8;
+    text-decoration: none;
+    transition: 0.2s ease;
+}
+
+.footer-col a:hover     { color: #ffffff; }
+
+.footer-bottom {
+    border-top: 1px solid #1e293b;
+    margin-top: 35px;
+    padding-top: 18px;
+    text-align: center;
+    font-size: 13px;
+    color: #64748b;
+}
+
+/* =====================================================
+   6. NAVIGATION
+   ===================================================== */
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--text-primary);
+}
+
+.logo img {
+    width: 34px; height: 34px;
+    object-fit: contain;
+    border-radius: 9px;
+}
+
+.logo-text { display: flex; flex-direction: column; gap: 1px; }
+
+.logo-name {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #0f172a;
+    line-height: 1;
+    display: block;
+    font-family: 'Syne', sans-serif;
+}
+
+.logo-tagline {
+    font-size: 9.5px;
+    font-weight: 400;
+    color: #94a3b8 !important;
+    -webkit-text-fill-color: #94a3b8 !important;
+    background: none !important;
+    letter-spacing: 0.2px;
+    line-height: 1;
+    white-space: nowrap;
+    display: block;
+}
+
+.main-nav { display: flex; gap: 28px; }
+
+.main-nav a {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 8px 0;
+    position: relative;
+    transition: color var(--transition-fast);
+    font-family: 'DM Sans', sans-serif;
+}
+
+.main-nav a:hover,
+.main-nav a.active { color: var(--primary); }
+
+.main-nav a.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--primary);
+    border-radius: 2px;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.mobile-menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 8px;
+}
+
+/* =====================================================
+   7. ACCOUNT DROPDOWN & LOGOUT MODAL
+   ===================================================== */
+.account-menu     { position: relative; cursor: pointer; }
+.account-trigger  { font-size: 22px; color: var(--text-secondary); }
+
+.header-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #EFF6FF;
+    border: 2px solid #DBEAFE;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    color: #3975EA;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.header-avatar:hover {
+    background: #DBEAFE;
+    border-color: #3975EA;
+}
+
+.account-dropdown {
+    position: absolute;
+    right: 0; top: 40px;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px;
+    min-width: 190px;
+    display: none;
+    box-shadow: 0 8px 32px rgba(57,117,234,0.12);
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+}
+
+.account-dropdown a {
+    display: block;
+    padding: 7px 4px;
+    color: var(--text-primary);
+    text-decoration: none;
+    border-radius: 6px;
+    transition: color 0.15s;
+}
+
+.account-dropdown a:hover { color: var(--primary); }
+
+.account-email { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+
+.account-section {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+.account-section:first-of-type { border-top: none; padding-top: 0; }
+
+.account-section .section-title {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.logout-modal {
+    position: fixed; inset: 0;
+    background: rgba(15,23,42,0.4);
+    backdrop-filter: blur(4px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.logout-box {
+    background: white;
+    padding: 32px;
+    border-radius: 16px;
+    width: 100%; max-width: 380px;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.15);
+    border: 1px solid var(--border-color);
+}
+
+.logout-box h3   { margin-bottom: 10px; font-family: 'Syne', sans-serif; color: var(--text-primary); }
+.logout-box p    { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; }
+.logout-actions  { display: flex; justify-content: center; gap: 12px; }
+
+/* =====================================================
+   8. RESPONSIVE — LAYOUT
+   ===================================================== */
+@media (max-width: 900px) {
+    .footer-inner { grid-template-columns: 1fr 1fr; gap: 30px; }
+}
+
+@media (max-width: 768px) {
+    :root { --header-height: 56px; }
+    .header-inner { padding: 0 16px; }
+    .mobile-menu-toggle { display: block; }
+
+    .main-nav {
+        position: fixed;
+        top: var(--header-height);
+        left: 0; right: 0;
+        background: #ffffff;
+        flex-direction: column;
+        padding: 16px 20px;
+        gap: 0;
+        border-bottom: 1px solid var(--border-color);
+        box-shadow: 0 8px 24px rgba(57,117,234,0.08);
+        transform: translateY(-100%);
+        opacity: 0;
+        visibility: hidden;
+        transition: all var(--transition-medium);
+        z-index: 999;
+    }
+
+    .main-nav.active { transform: translateY(0); opacity: 1; visibility: visible; }
+    .main-nav a      { padding: 14px 0; border-bottom: 1px solid #f3f4f6; font-size: 15px; }
+    .main-nav a:last-child { border-bottom: none; }
+    .main-nav a.active::after { display: none; }
+    .main-content    { padding: 16px; }
+    .hidden-mobile   { display: none !important; }
+    .header-currency-toggle { display: none; }
+}
+
+@media (max-width: 600px) {
+    .footer-inner  { grid-template-columns: 1fr; }
+    .main-content  { padding: 12px; }
+}
+
+@media (max-width: 480px) {
+    .header-inner  { padding: 0 12px; }
+    .logo-tagline  { display: none; }
+    .btn-primary   { padding: 7px 14px; font-size: 13px; }
+}
+
+/* =====================================================
+   9. HEADER CURRENCY TOGGLE
+   ===================================================== */
+.header-currency-toggle {
+    display: flex;
+    align-items: center;
+    background: #F1F5F9;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+}
+
+.hdr-cur-btn {
+    padding: 5px 11px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    font-family: 'DM Sans', sans-serif;
+}
+
+.hdr-cur-btn.active {
+    background: var(--primary);
+    color: #ffffff;
+    box-shadow: 0 1px 4px rgba(57,117,234,0.3);
+}
+
+.hdr-cur-btn:hover:not(.active) {
+    color: var(--text-primary);
+    background: rgba(255,255,255,0.8);
+}
+
+@media (max-width: 768px) {
+    .header-currency-toggle { display: none; }
+}
+
+/* =====================================================
+   10. BOTTOM TAB BAR — Mobile only
+   ===================================================== */
+.bottom-tab-bar { display: none; }
+
+@media (max-width: 768px) {
+    .mobile-menu-toggle { display: none !important; }
+    .main-nav           { display: none !important; }
+    .app-body           { padding-bottom: 72px; }
+    .pf-footer          { margin-bottom: 64px; }
+
+    .bottom-tab-bar {
+        display: flex;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        z-index: 1000;
+        background: #ffffff;
+        border-top: 1px solid var(--border-color);
+        box-shadow: 0 -4px 20px rgba(57,117,234,0.08);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        height: calc(60px + env(safe-area-inset-bottom, 0px));
+        align-items: stretch;
+    }
+
+    .tab-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        text-decoration: none;
+        color: #94a3b8;
+        padding: 8px 4px 6px;
+        position: relative;
+        transition: color 0.15s ease;
+        -webkit-tap-highlight-color: transparent;
+        cursor: pointer;
+        border: none;
+        background: none;
+        min-height: 60px;
+        font-family: 'DM Sans', sans-serif;
+    }
+
+    .tab-item:active { transform: scale(0.93); transition: transform 0.1s; }
+
+    .tab-icon {
+        width: 24px; height: 24px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 18px; line-height: 1;
+        transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    .tab-label { font-size: 10px; font-weight: 600; letter-spacing: 0.2px; line-height: 1; }
+
+    .tab-item.active { color: var(--primary); }
+    .tab-item.active .tab-icon { transform: translateY(-2px) scale(1.1); }
+
+    .tab-item.active::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 50%;
+        transform: translateX(-50%);
+        width: 32px; height: 3px;
+        background: var(--primary);
+        border-radius: 0 0 3px 3px;
+    }
+
+    .tab-auth-dot {
+        position: absolute;
+        top: 7px; right: calc(50% - 16px);
+        width: 7px; height: 7px;
+        background: #22c55e;
+        border-radius: 50%;
+        border: 1.5px solid #fff;
+    }
+}
+
+@media (max-width: 480px) {
+    .bottom-tab-bar { height: calc(56px + env(safe-area-inset-bottom, 0px)); }
+    .tab-icon       { font-size: 17px; width: 22px; height: 22px; }
+    .tab-label      { font-size: 9.5px; }
+    .tab-item       { min-height: 56px; padding: 7px 4px 5px; }
+}
+
+@media (max-width: 360px) {
+    .tab-label { font-size: 9px; }
+    .tab-icon  { font-size: 16px; }
+}
+
+/* =====================================================
+   LAYOUT ENHANCEMENTS — Header scroll effect,
+   design polish, mobile improvements
+   ===================================================== */
+
+/* ── Header Scroll Effect ──
+   main.js adds .scrolled class on scroll > 10px.
+   This gives a subtle glassmorphism effect. */
+.app-header.scrolled {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 2px 20px rgba(0,0,0,0.06);
+}
+
+/* Page fade-in handled by JS only — no CSS opacity:0 to avoid blank page if JS fails */
+
+/* ── Better active nav link ── */
+.main-nav a.active {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+/* ── Currency toggle buttons ── */
+.header-currency-toggle {
+  display: flex;
+  align-items: center;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.hdr-cur-btn {
+  padding: 5px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.hdr-cur-btn.active {
+  background: #fff;
+  color: #1d4ed8;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+.hdr-cur-btn:hover:not(.active) { color: #1e293b; }
+
+/* ── Mobile nav improvements ── */
+@media (max-width: 768px) {
+  /* Full-width mobile nav dropdown */
+  .main-nav.active {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    padding: 8px 0;
+    z-index: 999;
+  }
+
+  .main-nav a {
+    padding: 14px 20px;
+    font-size: 15px;
+    border-bottom: 1px solid #f8fafc;
+  }
+
+  .main-nav a:last-child { border-bottom: none; }
+
+  /* Currency toggle hidden on mobile (in header) — accessible via tab bar */
+  .header-currency-toggle { display: none; }
+}
+
+/* =====================================================
+   DARK MODE — Layout / Header / Nav / Bottom Bar
+   ===================================================== */
+body.dark .app-header {
+    background: #1E293B;
+    border-bottom-color: #334155;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.3);
+}
+body.dark .app-header.scrolled {
+    background: rgba(30,41,59,0.95);
+    border-bottom-color: #334155;
+}
+body.dark .logo-name       { color: #F1F5F9; }
+body.dark .main-nav a      { color: #94A3B8; }
+body.dark .main-nav a.active,
+body.dark .main-nav a:hover { color: #3B82F6; }
+body.dark .main-nav a.active::after { background: #3B82F6; }
+
+body.dark .header-avatar {
+    background: #1E3A5F;
+    border-color: #2563EB;
+    color: #60A5FA;
+}
+body.dark .account-dropdown {
+    background: #1E293B;
+    border-color: #334155;
+}
+body.dark .account-dropdown a { color: #F1F5F9; }
+body.dark .account-section    { border-top-color: #334155; }
+body.dark .logout-box {
+    background: #1E293B;
+    border-color: #334155;
+}
+body.dark .logout-box h3 { color: #F1F5F9; }
+body.dark .logout-box p  { color: #94A3B8; }
+
+body.dark .header-currency-toggle {
+    background: #0F172A;
+    border-color: #334155;
+}
+body.dark .hdr-cur-btn { color: #94A3B8; }
+body.dark .hdr-cur-btn.active {
+    background: #1E3A5F;
+    color: #60A5FA;
+}
+body.dark .hdr-cur-btn:hover:not(.active) { color: #F1F5F9; }
+
+/* Mobile nav */
+body.dark .main-nav {
+    background: #1E293B;
+    border-bottom-color: #334155;
+}
+body.dark .main-nav a { border-bottom-color: #334155; }
+
+/* Bottom tab bar */
+body.dark .bottom-tab-bar {
+    background: #1E293B;
+    border-top-color: #334155;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+}
+body.dark .tab-item          { color: #64748B; }
+body.dark .tab-item.active   { color: #3B82F6; }
+body.dark .tab-item.active::before { background: #3B82F6; }
+body.dark .tab-auth-dot      { border-color: #1E293B; }
+
+/* Sidebar */
+body.dark .sidebar,
+body.dark .sidebar-card {
+    background: #1E293B;
+    border-color: #334155;
+}

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Coin Scanner{% endblock %} | Agreed Financial Tech Pvt. Ltd.</title>
+
+    {# Auth state meta tag — read by main.js to avoid Jinja inside JS files #}
+    <meta name="user-logged-in" content="{{ 'true' if session.get('user_id') else 'false' }}">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/logo.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/logo.png') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/logo.png') }}">
+
+    {# ── Dark mode preload — must run before CSS paints to avoid flash ── #}
+    <script>
+        (function(){
+            try {
+                if (localStorage.getItem('cs_theme') === 'dark') {
+                    document.documentElement.classList.add('dark-preload');
+                    document.addEventListener('DOMContentLoaded', function() {
+                        document.body.classList.add('dark');
+                    });
+                }
+            } catch(e) {}
+        })();
+    </script>
+    <style>
+        /* Prevent flash: if dark-preload is set, apply bg immediately */
+        html.dark-preload { background: #0F172A; }
+    </style>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/footer.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body class="{% block body_class %}{% endblock %}">
+
+    <div class="app-container layout-wrapper">
+
+        <!-- ══ HEADER ══ -->
+        <header class="app-header">
+            <div class="header-inner">
+
+                <a href="{{ url_for('home') }}" class="logo">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="CoinScanner">
+                    <div class="logo-text">
+                        <span class="logo-name">COIN SCANNER</span>
+                        <span class="logo-tagline">A product of Agreed Financial Tech Pvt. Ltd.</span>
+                    </div>
+                </a>
+
+                <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+
+                <nav class="main-nav" id="mainNav">
+                    <a href="{{ url_for('home') }}"    class="{% if page == 'home'    %}active{% endif %}">Home</a>
+                    <a href="{{ url_for('compare') }}" class="{% if page == 'compare' %}active{% endif %}">Compare</a>
+                    <a href="{{ url_for('coins') }}"   class="{% if page == 'coins'   %}active{% endif %}">Coins</a>
+                    <a href="{{ url_for('news') }}"    class="{% if page == 'news'    %}active{% endif %}">News</a>
+                </nav>
+
+                <div class="header-actions">
+
+                    <div class="header-currency-toggle" id="headerCurrencyToggle">
+                        <button class="hdr-cur-btn active" data-currency="inr">₹ INR</button>
+                        <button class="hdr-cur-btn"        data-currency="usd">$ USD</button>
+                    </div>
+
+                    {% if session.get('user_id') %}
+                    <div class="account-menu">
+                        <div class="account-trigger">
+                            <div class="header-avatar">
+                                {{ session.get('user_email', 'U')[0] | upper }}
+                            </div>
+                        </div>
+                        <div class="account-dropdown">
+                            <p class="account-email">{{ session.get('user_email') }}</p>
+                            <div class="account-section">
+                                <span class="section-title">Services</span>
+                                <a href="{{ url_for('coins') }}">Coins</a>
+                                <a href="{{ url_for('compare') }}">Compare</a>
+                                <a href="{{ url_for('news') }}">News</a>
+                            </div>
+                            <div class="account-section">
+                                <span class="section-title">Account</span>
+                                <a href="{{ url_for('profile') }}"><i class="fa-regular fa-user" style="width:14px;margin-right:6px;color:#3975EA;"></i>My Profile</a>
+                                <a href="{{ url_for('profile') }}?tab=watchlist"><i class="fa-regular fa-bookmark" style="width:14px;margin-right:6px;color:#3975EA;"></i>Watchlist</a>
+                                <a href="#" id="logoutBtn"><i class="fa-solid fa-right-from-bracket" style="width:14px;margin-right:6px;color:#DC2626;"></i>Logout</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="logout-modal" id="logoutModal">
+                        <div class="logout-box">
+                            <h3>Confirm Logout</h3>
+                            <p>Are you sure you want to logout?</p>
+                            <div class="logout-actions">
+                                <button id="cancelLogout" class="btn btn-text">Cancel</button>
+                                <a href="{{ url_for('logout') }}" class="btn btn-primary">Logout</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% else %}
+                    <a href="{{ url_for('login') }}"  class="btn btn-text hidden-mobile">Log in</a>
+                    <a href="{{ url_for('signup') }}" class="btn btn-primary">Sign up</a>
+                    {% endif %}
+
+                </div>
+            </div>
+        </header>
+
+        <div class="app-body">
+            {% block sidebar %}{% endblock %}
+            <main class="main-content">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+
+    </div><!-- /app-container -->
+
+    <!-- ══ PREMIUM FOOTER ══ -->
+    <footer class="pf-footer">
+
+        <div class="pf-top">
+            <div class="pf-inner">
+
+                <div>
+                    <a href="/" class="pf-logo">
+                        <img src="/static/images/logo.png" alt="CoinScanner">
+                        <div class="pf-logo-text">
+                            <span class="pf-logo-name">COIN SCANNER</span>
+                            <span class="pf-logo-tagline">A product of Agreed Financial Tech Pvt. Ltd.</span>
+                        </div>
+                    </a>
+                    <div class="pf-social">
+                        <a href="https://instagram.com/Coin.scanner" target="_blank" aria-label="Instagram">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                        <a href="#" aria-label="Twitter">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                        <a href="#" aria-label="LinkedIn">
+                            <i class="fab fa-linkedin"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="pf-col">
+                    <h4>Platform</h4>
+                    <a href="{{ url_for('home') }}">Home</a>
+                    <a href="{{ url_for('compare') }}">Compare Exchanges</a>
+                    <a href="{{ url_for('coins') }}">Coins</a>
+                    <a href="{{ url_for('news') }}">News</a>
+                    <a href="/about">About Us</a>
+                </div>
+
+                <div class="pf-col">
+                    <h4>Support</h4>
+                    <a href="/about#faq">FAQ</a>
+                    <a href="/about#contact">Contact Us</a>
+                    <a href="/about">About</a>
+                </div>
+
+                <div class="pf-col">
+                    <h4>Legal</h4>
+                    <a href="/terms">Terms of Service</a>
+                    <a href="/privacy">Privacy Policy</a>
+                    <a href="/disclaimer">Disclaimer</a>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="pf-investor-band">
+            <div class="pf-inner pf-investor-inner">
+                <div class="pf-investor-left">
+                    <div class="pf-investor-icon">
+                        <i class="fa-solid fa-handshake"></i>
+                    </div>
+                    <div>
+                        <div class="pf-investor-title">Investor Relations</div>
+                        <p class="pf-investor-desc">
+                            We're here to connect with investors who share our vision — bringing investors closer, opening doors for conversations, and building partnerships that lead to real growth. Together, we can turn opportunities into lasting impact.
+                        </p>
+                    </div>
+                </div>
+                <a href="/investors" class="pf-investor-btn">
+                    Get in Touch <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="pf-bottom">
+            <div class="pf-inner pf-bottom-inner">
+                <span>© {{ year if year else "2026" }} Agreed Financial Tech Pvt. Ltd. — CoinScanner. All rights reserved.</span>
+                <span class="pf-bottom-note">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    Coin Scanner is a comparison platform, not a broker. Not financial advice.
+                </span>
+            </div>
+        </div>
+
+    </footer>
+
+    <div class="sidebar-overlay" id="sidebarOverlay" style="display:none;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+
+<!-- ══ for mobile tab ══ -->
+
+<nav class="bottom-tab-bar" id="bottomTabBar">
+
+  <a href="{{ url_for('home') }}"
+     class="tab-item {% if page == 'home' %}active{% endif %}">
+    <span class="tab-icon"><i class="fa-solid fa-house"></i></span>
+    <span class="tab-label">Home</span>
+  </a>
+
+  <a href="{{ url_for('compare') }}"
+     class="tab-item {% if page == 'compare' %}active{% endif %}">
+    <span class="tab-icon"><i class="fa-solid fa-scale-balanced"></i></span>
+    <span class="tab-label">Compare</span>
+  </a>
+
+  <a href="{{ url_for('coins') }}"
+     class="tab-item {% if page == 'coins' or page == 'coin' %}active{% endif %}">
+    <span class="tab-icon"><i class="fa-solid fa-coins"></i></span>
+    <span class="tab-label">Coins</span>
+  </a>
+
+  <a href="{{ url_for('news') }}"
+     class="tab-item {% if page == 'news' %}active{% endif %}">
+    <span class="tab-icon"><i class="fa-solid fa-newspaper"></i></span>
+    <span class="tab-label">News</span>
+  </a>
+
+  {% if session.get('user_id') %}
+  <a href="{{ url_for('profile') }}"
+     class="tab-item {% if page == 'profile' %}active{% endif %}">
+    <span class="tab-icon"><i class="fa-solid fa-circle-user"></i></span>
+    <span class="tab-label">Profile</span>
+    <span class="tab-auth-dot"></span>
+  </a>
+  {% else %}
+  <a href="{{ url_for('login') }}"
+     class="tab-item {% if page == 'login' or page == 'signup' %}active{% endif %}">
+    <span class="tab-icon"><i class="fa-solid fa-circle-user"></i></span>
+    <span class="tab-label">Log in</span>
+  </a>
+  {% endif %}
+
+</nav>
+
+{# Inline script removed — mobile bottom sheet logic is now in main.js #}
+{# main.js reads the data attributes below to get URLs without Jinja in JS #}
+
+</body>
+</html>

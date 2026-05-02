@@ -1,0 +1,354 @@
+/* =====================================================
+   INVESTORS.CSS — Investor Relations Page
+   Font: Cormorant Garamond (display) + DM Sans (body)
+===================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  --inv-navy:       #0a0f1e;
+  --inv-navy-mid:   #111827;
+  --inv-blue:       #2563eb;
+  --inv-blue-light: #eff6ff;
+  --inv-gold:       #d97706;
+  --inv-gold-light: #fffbeb;
+  --inv-green:      #16a34a;
+  --inv-text:       #0f172a;
+  --inv-muted:      #64748b;
+  --inv-border:     #e2e8f0;
+  --inv-white:      #ffffff;
+  --inv-bg:         #f8fafc;
+}
+
+/* ── Base ── */
+.inv-section {
+  font-family: 'DM Sans', sans-serif;
+  padding: 64px 0;
+  /* NO nth-child alternating — each section sets its own bg explicitly */
+}
+
+.inv-container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+/* ── Section label ── */
+.inv-section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--inv-gold);
+  margin-bottom: 14px;
+}
+
+/* ── Section title (default — light bg) ── */
+.inv-section-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(30px, 4vw, 48px);
+  font-weight: 700;
+  color: var(--inv-text);
+  line-height: 1.1;
+  letter-spacing: -0.3px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+/* ── Section sub ── */
+.inv-section-sub {
+  font-size: 15.5px;
+  color: var(--inv-muted);
+  text-align: center;
+  max-width: 560px;
+  margin: 0 auto 40px;
+  line-height: 1.7;
+}
+
+.inv-body-text {
+  font-size: 15px;
+  color: #374151;
+  line-height: 1.75;
+  margin-bottom: 16px;
+}
+
+
+/* =====================================================
+   TEAM — dark bg, explicit light text
+===================================================== */
+.inv-team-section {
+  background: var(--inv-navy);
+}
+
+.inv-team-section .inv-section-label {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.inv-team-section .inv-section-title {
+  color: #ffffff;
+}
+
+.inv-team-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-top: 40px;
+}
+
+.inv-team-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 32px 28px;
+  text-align: center;
+  transition: all 0.25s ease;
+}
+
+.inv-team-card:hover {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.18);
+  transform: translateY(-4px);
+}
+
+.inv-team-center-DISABLED {
+  border-color: rgba(217,119,6,0.3);
+  background: rgba(217,119,6,0.05);
+}
+
+.inv-team-avatar {
+  width: 68px; height: 68px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 auto 18px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.inv-team-card h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+.inv-team-role {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--inv-gold);
+  margin-bottom: 14px;
+  letter-spacing: 0.3px;
+}
+
+.inv-team-card p {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.65;
+  margin: 0;
+}
+
+
+
+/* =====================================================
+   CONTACT FORM — dark bg
+===================================================== */
+.inv-contact-section {
+  background: linear-gradient(135deg, #0a0f1e 0%, #111827 100%);
+}
+
+.inv-contact-section .inv-section-label {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.inv-contact-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 64px;
+  align-items: start;
+}
+
+.inv-contact-left .inv-section-title {
+  color: #ffffff;
+  font-size: clamp(26px, 3vw, 38px);
+  text-align: left;
+}
+
+.inv-contact-left .inv-body-text {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.inv-contact-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.35);
+  margin: 20px 0 24px;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+}
+
+.inv-contact-note i { color: var(--inv-gold); }
+
+.inv-email-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--inv-gold);
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.inv-email-link:hover { opacity: 0.8; }
+.inv-email-link i     { font-size: 13px; }
+
+/* Form card */
+.inv-form-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 36px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.4);
+}
+
+.inv-form-card h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--inv-text);
+  margin-bottom: 24px;
+}
+
+.inv-field { margin-bottom: 18px; }
+
+.inv-field label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+}
+
+.inv-field label span { color: #dc2626; }
+
+.inv-field input,
+.inv-field select,
+.inv-field textarea {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--inv-text);
+  background: #fafafa;
+  transition: all 0.2s ease;
+  outline: none;
+  box-sizing: border-box;
+  appearance: none;
+}
+
+.inv-field input:focus,
+.inv-field select:focus,
+.inv-field textarea:focus {
+  border-color: var(--inv-blue);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+
+.inv-field textarea { resize: vertical; min-height: 100px; }
+
+.inv-form-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #dc2626;
+  background: #fff1f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+
+.inv-submit-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--inv-navy);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.22s ease;
+}
+
+.inv-submit-btn:hover {
+  background: var(--inv-blue);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(37,99,235,0.3);
+}
+
+.inv-form-success {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 0;
+  gap: 12px;
+}
+
+.inv-form-success i      { font-size: 48px; color: var(--inv-green); }
+.inv-form-success strong { font-size: 18px; color: var(--inv-text); }
+.inv-form-success p      { font-size: 14px; color: var(--inv-muted); }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+    .inv-opp-grid { grid-template-columns: repeat(2, 1fr); }
+    .inv-two-col { grid-template-columns: 1fr; gap: 32px; }
+    .inv-model-flow { flex-direction: column; align-items: center; gap: 16px; }
+    .inv-model-arrow { transform: rotate(90deg); }
+    .inv-team-grid { grid-template-columns: repeat(2, 1fr); }
+    .inv-why-grid { grid-template-columns: repeat(2, 1fr); }
+    .inv-contact-wrap { grid-template-columns: 1fr; gap: 32px; }
+}
+
+@media (max-width: 768px) {
+    .inv-hero { padding: 60px 0 48px; }
+    .inv-hero-title { font-size: 32px; }
+    .inv-hero-sub { font-size: 15px; }
+    .inv-opp-grid { grid-template-columns: 1fr 1fr; }
+    .inv-team-grid { grid-template-columns: 1fr; }
+    .inv-why-grid { grid-template-columns: 1fr; }
+    .inv-proof-pills { flex-wrap: wrap; gap: 8px; }
+    .inv-section-title { font-size: 24px; }
+}
+
+@media (max-width: 480px) {
+    .inv-container { padding: 0 16px; }
+    .inv-hero-title { font-size: 26px; }
+    .inv-hero-eyebrow { font-size: 11px; }
+    .inv-opp-grid { grid-template-columns: 1fr; }
+    .inv-opp-num { font-size: 36px; }
+    .inv-section-title { font-size: 20px; }
+    .inv-form-card { padding: 24px 18px; }
+    .inv-field input,
+    .inv-field select,
+    .inv-field textarea { font-size: 16px; } /* prevent iOS zoom */
+}

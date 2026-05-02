@@ -1,0 +1,85 @@
+{% extends "layouts/base_auth.html" %}
+{% block title %}Verify Mobile — CoinScanner{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+
+  <!-- ══ LEFT PANEL ══ -->
+  <div class="auth-left">
+    <a href="/" class="auth-logo">
+      <img src="/static/images/logo.png" alt="CoinScanner">
+      <div class="auth-logo-text">
+        <span class="auth-logo-name">COIN SCANNER</span>
+        <span class="auth-logo-tagline">A product of Agreed Financial Tech Pvt. Ltd.</span>
+      </div>
+    </a>
+    <div class="auth-left-content">
+      <h1>Step 2 of 2 — <span>Verify your mobile</span></h1>
+      <p>Almost there! Enter the code sent to your mobile number to activate your account.</p>
+      <div class="auth-features">
+        <div><span class="auth-feature-check"><i class="fa-solid fa-check"></i></span> Email verified ✓</div>
+        <div><span class="auth-feature-check"><i class="fa-solid fa-check"></i></span> Mobile OTP verification</div>
+        <div><span class="auth-feature-check"><i class="fa-solid fa-check"></i></span> Account active after this step</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ RIGHT PANEL ══ -->
+  <div class="auth-right">
+    <div class="auth-card">
+
+      <!-- Step indicator -->
+      <div class="auth-steps">
+        <div class="auth-step done">
+          <span class="auth-step-num"><i class="fa-solid fa-check"></i></span>
+          <span class="auth-step-label">Email</span>
+        </div>
+        <div class="auth-step-line active"></div>
+        <div class="auth-step active">
+          <span class="auth-step-num">2</span>
+          <span class="auth-step-label">Mobile</span>
+        </div>
+      </div>
+
+      <h2>Verify your mobile 📱</h2>
+      <p class="auth-subtitle">
+        Enter the 6-digit OTP sent to <strong>{{ masked_phone }}</strong>
+      </p>
+
+      {% if error %}
+      <div class="auth-alert auth-alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+      </div>
+      {% endif %}
+
+      <form method="POST" id="otpForm" novalidate>
+        <div class="otp-boxes-wrap">
+          <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+          <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+          <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+          <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+          <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+          <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+        </div>
+        <input type="hidden" name="otp" id="otpHidden">
+
+        <div class="otp-timer-row">
+          <span id="timerText">Resend in <strong id="timerCount">60</strong>s</span>
+          <a href="{{ url_for('verify_phone', email=email) }}" id="resendOtpBtn"
+             class="otp-resend-link" style="pointer-events:none;opacity:0.4;">Resend OTP</a>
+        </div>
+
+        <button type="submit" class="auth-btn" id="otpSubmitBtn" disabled style="opacity:0.5;">
+          <i class="fa-solid fa-mobile-screen-button"></i> Verify Mobile & Activate Account
+        </button>
+      </form>
+
+      <div class="auth-switch">
+        Wrong number? <a href="{{ url_for('signup') }}">Start over</a>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

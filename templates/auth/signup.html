@@ -1,0 +1,156 @@
+{% extends "layouts/base_auth.html" %}
+{% block title %}Create Account — CoinScanner{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+
+  <!-- ══ LEFT PANEL ══ -->
+  <div class="auth-left">
+    <a href="/" class="auth-logo">
+      <img src="/static/images/logo.png" alt="CoinScanner">
+      <div class="auth-logo-text">
+        <span class="auth-logo-name">COIN SCANNER</span>
+        <span class="auth-logo-tagline">A product of Agreed Financial Tech Pvt. Ltd.</span>
+      </div>
+    </a>
+    <div class="auth-left-content">
+      <h1>Start your <span>smart investing</span> journey today</h1>
+      <p>Join thousands of investors using CoinScanner to track, compare and invest in crypto with confidence.</p>
+      <div class="auth-features">
+        <div><span class="auth-feature-check"><i class="fa-solid fa-check"></i></span> Compare exchanges instantly</div>
+        <div><span class="auth-feature-check"><i class="fa-solid fa-check"></i></span> Track real-time crypto prices in INR</div>
+        <div><span class="auth-feature-check"><i class="fa-solid fa-check"></i></span> Save coins &amp; exchanges to watchlist</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ RIGHT PANEL ══ -->
+  <div class="auth-right">
+    <div class="auth-card">
+
+      <h2>Create account</h2>
+      <p class="auth-subtitle">Join CoinScanner today — it's free forever</p>
+
+      <!-- Error message -->
+      {% if error %}
+      <div class="auth-alert auth-alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+      </div>
+      {% endif %}
+
+      <form method="POST" action="/signup" novalidate>
+
+        <!-- Full Name -->
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <div class="form-input-wrap">
+            <i class="fa-regular fa-user form-input-icon"></i>
+            <input
+              type="text"
+              name="name"
+              id="authName"
+              placeholder="name"
+              value="{{ form_name | default('') }}"
+              autocomplete="name"
+              required>
+          </div>
+          <!-- Live validation hint — filled by auth.js -->
+          <div class="form-hint" id="authNameHint"></div>
+        </div>
+
+        <!-- Email -->
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <div class="form-input-wrap">
+            <i class="fa-regular fa-envelope form-input-icon"></i>
+            <input
+              type="email"
+              name="email"
+              id="authEmail"
+              placeholder="email"
+              value="{{ form_email | default('') }}"
+              autocomplete="email"
+              required>
+          </div>
+          <div class="form-hint" id="authEmailHint"></div>
+        </div>
+
+        <!-- Phone -->
+        <div class="form-group">
+          <label class="form-label">Mobile Number</label>
+          <div class="form-input-wrap">
+            <i class="fa-solid fa-mobile-screen form-input-icon"></i>
+            <input
+              type="tel"
+              name="phone"
+              id="authPhone"
+              placeholder="phone"
+              value="{{ form_phone | default('') }}"
+              autocomplete="tel"
+              maxlength="10"
+              inputmode="numeric"
+              required>
+          </div>
+          <div class="form-hint" id="authPhoneHint"></div>
+        </div>
+
+        <!-- Password with strength meter -->
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div class="form-input-wrap">
+            <i class="fa-solid fa-lock form-input-icon"></i>
+            <input
+              type="password"
+              name="password"
+              id="authPassword"
+              placeholder="Min 8 characters"
+              autocomplete="new-password"
+              required>
+            <button type="button" class="auth-eye-btn" data-target="authPassword" title="Show password">
+              <i class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+          <!-- Strength bar — animated by auth.js -->
+          <div class="auth-strength-wrap">
+            <div class="auth-strength-bar">
+              <div class="auth-strength-fill" id="strengthFill"></div>
+            </div>
+            <span class="auth-strength-label" id="strengthLabel"></span>
+          </div>
+        </div>
+
+        <!-- Confirm Password with match hint -->
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <div class="form-input-wrap">
+            <i class="fa-solid fa-lock form-input-icon"></i>
+            <input
+              type="password"
+              name="confirm_password"
+              id="confirmPassword"
+              placeholder="Repeat your password"
+              autocomplete="new-password"
+              required>
+            <button type="button" class="auth-eye-btn" data-target="confirmPassword" title="Show password">
+              <i class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+          <!-- Match hint — updated by auth.js -->
+          <div class="form-hint" id="matchHint"></div>
+        </div>
+
+        <button type="submit" class="auth-btn">
+          <i class="fa-solid fa-user-plus"></i> Create Account
+        </button>
+
+      </form>
+
+      <div class="auth-switch">
+        Already have an account? <a href="/login">Log in</a>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

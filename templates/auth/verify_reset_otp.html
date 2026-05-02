@@ -1,0 +1,70 @@
+{% extends "layouts/base_public.html" %}
+{% block title %}Verify OTP — CoinScanner{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/password_pages.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="auth-flow-page">
+    <div class="auth-flow-box">
+
+        <div class="afb-header">
+            <a href="{{ url_for('forgot_password') }}" class="afb-back">
+                <i class="fa-solid fa-arrow-left"></i> Back
+            </a>
+            <div class="afb-icon-wrap">
+                <i class="fa-solid fa-mobile-screen-button"></i>
+            </div>
+            <div class="afb-title">Enter OTP</div>
+            <div class="afb-sub">A 6-digit code was sent to your registered contact. It's valid for 5 minutes.</div>
+        </div>
+
+        <div class="afb-body">
+
+            {% if error %}
+            <div class="afb-alert error">
+                <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+            </div>
+            {% endif %}
+
+            <div class="otp-sent-to">
+                Sent to <strong>{{ identifier }}</strong>
+            </div>
+
+            <form method="POST" action="{{ url_for('verify_reset_otp') }}" id="otpForm">
+                <div class="otp-wrap" id="otpWrap">
+                    <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                    <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                    <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                    <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                    <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                    <input class="otp-box" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                </div>
+                <input type="hidden" name="otp" id="otpHidden">
+
+                <div class="otp-timer" style="margin-top:8px;">
+                    <span id="timerText">Resend in <strong id="timerCount">60</strong>s</span>
+                    <button type="button" class="otp-resend-btn" id="resendBtn" disabled style="margin-left:6px;"
+                            onclick="document.getElementById('resendForm').submit()">
+                        Resend OTP
+                    </button>
+                </div>
+
+                <button type="submit" class="afb-btn-primary" style="margin-top:16px;" id="verifyBtn" disabled>
+                    <i class="fa-solid fa-shield-check"></i> Verify OTP
+                </button>
+
+            </form>
+
+            <!-- Resend form lives OUTSIDE the main form to avoid nesting -->
+            <form method="POST" action="{{ url_for('resend_reset_otp') }}" id="resendForm" style="display:none;"></form>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{# OTP boxes + timer (verify_reset_otp) and eye toggle + strength (reset_password) moved to auth.js #}
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+{% endblock %}

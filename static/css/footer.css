@@ -1,0 +1,264 @@
+/* =====================================================
+   FOOTER.CSS — Premium Footer + Header Currency Toggle
+===================================================== */
+
+/* ── Header Currency Toggle ── */
+.header-currency-toggle {
+    display: flex;
+    align-items: center;
+    background: rgba(241, 245, 249, 0.8);
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 3px;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.hdr-cur-btn {
+    padding: 5px 13px;
+    border: none;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    background: transparent;
+    color: #64748b;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+}
+
+.hdr-cur-btn.active {
+    background: #ffffff;
+    color: #1877F2;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.hdr-cur-btn:hover:not(.active) {
+    color: #1e293b;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+@media (max-width: 640px) {
+    .header-currency-toggle { display: none; }
+}
+
+/* =====================================================
+   PREMIUM FOOTER
+===================================================== */
+.pf-footer {
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    background: #0a0f1e;
+    color: #cbd5e1;
+    margin-top: 60px;
+}
+
+.pf-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 32px;
+}
+
+.pf-top { padding: 64px 0 48px; }
+
+.pf-top .pf-inner {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 48px;
+}
+
+.pf-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: #fff;
+    margin-bottom: 16px;
+}
+
+.pf-logo img {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    object-fit: contain;
+}
+
+.pf-logo-text { display: flex; flex-direction: column; gap: 2px; }
+
+.pf-logo-name {
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #fff;
+    line-height: 1;
+}
+
+.pf-logo-tagline {
+    font-size: 9.5px;
+    color: rgba(255, 255, 255, 0.35);
+    font-weight: 400;
+    line-height: 1;
+}
+
+.pf-brand-desc {
+    font-size: 13.5px;
+    color: #94a3b8;
+    line-height: 1.7;
+    margin-bottom: 22px;
+    max-width: 280px;
+}
+
+.pf-social { display: flex; gap: 10px; }
+
+.pf-social a {
+    width: 36px;
+    height: 36px;
+    background: #111827;
+    border: 1px solid #1e293b;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    font-size: 15px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.pf-social a:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+    transform: translateY(-2px);
+}
+
+.pf-col h4 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: #ffffff;
+    margin-bottom: 18px;
+}
+
+.pf-col a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 13.5px;
+    color: #94a3b8;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.pf-col a:hover { color: #ffffff; }
+
+/* Investor Relations band */
+.pf-investor-band {
+    background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%);
+    border-top: 1px solid #1e3a5f;
+    border-bottom: 1px solid #1e293b;
+    padding: 28px 0;
+}
+
+.pf-investor-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.pf-investor-left {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    flex: 1;
+}
+
+.pf-investor-icon {
+    width: 44px;
+    height: 44px;
+    background: rgba(37, 99, 235, 0.2);
+    border: 1px solid rgba(37, 99, 235, 0.3);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #93c5fd;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.pf-investor-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 6px;
+}
+
+.pf-investor-desc {
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.65;
+    max-width: 640px;
+    margin: 0;
+}
+
+.pf-investor-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 22px;
+    background: #2563eb;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.pf-investor-btn:hover {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+    gap: 12px;
+}
+
+/* Bottom bar */
+.pf-bottom { padding: 18px 0; background: #060a14; }
+
+.pf-bottom-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: #475569;
+}
+
+.pf-bottom-note {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pf-bottom-note i { color: #f59e0b; }
+
+/* Responsive */
+@media (max-width: 900px) {
+    .pf-top .pf-inner { grid-template-columns: 1fr 1fr; gap: 32px; }
+    .pf-investor-inner { flex-direction: column; align-items: flex-start; }
+}
+
+@media (max-width: 600px) {
+    .pf-top .pf-inner { grid-template-columns: 1fr; }
+    .pf-top            { padding: 40px 0 32px; }
+    .pf-inner          { padding: 0 20px; }
+    .pf-bottom-inner   { flex-direction: column; text-align: center; }
+}

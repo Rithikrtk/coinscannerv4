@@ -1,0 +1,508 @@
+/* =====================================================
+   COMPONENTS.CSS — Buttons, Cards, Badges, Forms, Widgets
+   ===================================================== */
+
+/* =====================================================
+   1. BUTTONS
+   ===================================================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    transition: all var(--transition-fast);
+}
+
+.btn-primary {
+    background: var(--accent-blue);
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background: var(--accent-dark);
+    transform: translateY(-1px);
+}
+
+.btn-text {
+    background: transparent;
+    color: var(--text-secondary);
+}
+
+.btn-text:hover {
+    color: var(--text-primary);
+}
+
+.btn-dark {
+    background: #1a1a1a;
+    color: #ffffff;
+    padding: 12px 24px;
+}
+
+.btn-light {
+    background: #ffffff;
+    color: #1a1a1a;
+    border: 1px solid var(--border-color);
+    padding: 12px 24px;
+}
+
+.btn-large {
+    padding: 14px 32px;
+    font-size: 16px;
+}
+
+/* =====================================================
+   2. CARDS (Generic)
+   ===================================================== */
+.card {
+    background: var(--card-bg);
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.card-body {
+    padding: 24px;
+}
+
+/* =====================================================
+   3. BADGES
+   ===================================================== */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.badge.low      { background: #DBEAFE; color: #1E40AF; }
+.badge.moderate { background: #FEF3C7; color: #92400E; }
+.badge.high     { background: #FEE2E2; color: #991B1B; }
+.badge.green    { background: #DCFCE7; color: #166534; }
+
+/* =====================================================
+   4. SEARCH BAR
+   ===================================================== */
+.search-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 450px;
+    padding: 12px 16px;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.search-bar input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.search-bar input::placeholder {
+    color: var(--text-secondary);
+}
+
+/* =====================================================
+   5. IOS TOGGLE SWITCH
+   ===================================================== */
+.ios-switch {
+    position: relative;
+    width: 42px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.ios-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.ios-switch .slider {
+    position: absolute;
+    inset: 0;
+    background-color: #E5E7EB;
+    border-radius: 999px;
+    transition: background-color 0.25s ease;
+    cursor: pointer;
+}
+
+.ios-switch .slider::before {
+    content: "";
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    top: 3px;
+    background-color: #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    transition: transform 0.25s ease;
+}
+
+.ios-switch input:checked + .slider {
+    background-color: var(--accent-blue);
+}
+
+.ios-switch input:checked + .slider::before {
+    transform: translateX(18px);
+}
+
+/* =====================================================
+   6. FILTER SIDEBAR (Compare Page)
+   ===================================================== */
+.filters h3 {
+    font-size: 12px;
+    font-weight: 700;
+    color: #64748b;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.filter-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f8fafc;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-toggle:hover {
+    background: #eef2ff;
+    border-color: #c7d2fe;
+}
+
+.filter-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.clear-filters-btn {
+    width: 100%;
+    padding: 12px;
+    background: #ffffff;
+    border: 2px solid #e4e6eb;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #65676b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clear-filters-btn:hover {
+    border-color: #1877F2;
+    color: #1877F2;
+    background: #f0f7ff;
+}
+
+/* =====================================================
+   7. RIGHT SIDEBAR WIDGETS (Home / Compare)
+   ===================================================== */
+.side-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    margin-bottom: 24px;
+}
+
+.side-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+/* Market Signals */
+.signal-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    font-size: 13px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.signal-row:last-child { border-bottom: none; }
+.signal-row span { color: #64748b; }
+.signal-row strong { font-weight: 600; }
+
+/* Crypto 101 Learn List */
+.learn-list {
+    list-style: none;
+    margin-bottom: 14px;
+}
+
+.learn-list li {
+    font-size: 13px;
+    color: #475569;
+    padding: 6px 0;
+    position: relative;
+    padding-left: 18px;
+}
+
+.learn-list li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #1877F2;
+    font-weight: 700;
+}
+
+.learn-btn {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1877F2;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.learn-btn:hover { text-decoration: underline; }
+
+/* Sentiment Bars */
+.sentiment-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 40px;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 12px;
+}
+
+.bar {
+    background: #f1f5f9;
+    height: 8px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    border-radius: 10px;
+}
+
+.bar-fill.green { background: #22c55e; }
+.bar-fill.red   { background: #ef4444; }
+
+.sentiment-status {
+    font-size: 12px;
+    color: #475569;
+    margin-top: 10px;
+}
+
+.sentiment-status span {
+    font-weight: 600;
+    color: #16a34a;
+}
+
+/* =====================================================
+   8. ASSET TABLE (Dashboard)
+   ===================================================== */
+.asset-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.asset-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.asset-table td {
+    padding: 16px 0;
+    font-size: 14px;
+    font-weight: 500;
+    border-bottom: 1px solid #F3F4F6;
+}
+
+.asset-row:last-child td { border-bottom: none; }
+
+/* Widget Items */
+.widget-item {
+    padding: 16px 0;
+    border-bottom: 1px solid #F3F4F6;
+}
+
+.widget-item:last-child { border-bottom: none; }
+
+.widget-text {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.widget-text strong {
+    display: block;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+/* =====================================================
+   9. RESPONSIVE — COMPONENTS
+   ===================================================== */
+@media (max-width: 768px) {
+    .mobile-filter-btn {
+        display: inline-flex;
+        margin-bottom: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .asset-table {
+        font-size: 12px;
+    }
+
+    .asset-table th,
+    .asset-table td {
+        padding: 8px 4px;
+    }
+}
+
+
+/* =====================================================
+   COMPONENTS — DARK MODE
+   ===================================================== */
+body.dark .btn-primary {
+    background: #2563EB;
+    border-color: #2563EB;
+}
+body.dark .btn-primary:hover    { background: #1D4ED8; }
+body.dark .btn-text             { color: #94A3B8; }
+body.dark .btn-text:hover       { color: #F1F5F9; }
+body.dark .btn-outline          { border-color: #334155; color: #94A3B8; }
+body.dark .btn-outline:hover    { border-color: #3B82F6; color: #3B82F6; }
+
+body.dark .coin-star-btn,
+body.dark .mover-star-btn       { color: #64748B; }
+body.dark .coin-star-btn:hover,
+body.dark .mover-star-btn:hover { color: #F59E0B; }
+body.dark .coin-star-btn.starred i,
+body.dark .mover-star-btn.starred i { color: #F59E0B; }
+body.dark .coin-star-btn::after,
+body.dark .mover-star-btn::after {
+    background: #1E293B;
+    color: #F1F5F9;
+    border: 1px solid #334155;
+}
+
+/* ct-pill (up/down badges in table) */
+body.dark .ct-pill.up  { background: #052e16; color: #4ADE80; }
+body.dark .ct-pill.dn  { background: #2D0A0A; color: #F87171; }
+
+/* mover badges */
+body.dark .mover-badge.gain-badge,
+body.dark .mover-badge.up  { background: #052e16; color: #4ADE80; }
+body.dark .mover-badge.lose-badge,
+body.dark .mover-badge.down { background: #2D0A0A; color: #F87171; }
+
+/* gain-dot / lose-dot / pick-dot in mover tabs */
+body.dark .gain-dot  { background: #4ADE80; }
+body.dark .lose-dot  { background: #F87171; }
+body.dark .pick-dot  { background: #60A5FA; }
+
+/* about / coin detail page */
+body.dark .coin-detail-page     { background: transparent; }
+body.dark .cd-hero              { background: #1E293B; border-color: #334155; }
+body.dark .cd-name              { color: #F1F5F9; }
+body.dark .cd-symbol-badge,
+body.dark .cd-rank-badge        { background: #0F172A; border-color: #334155; color: #94A3B8; }
+body.dark .cd-price             { color: #F1F5F9; }
+body.dark .cd-chart-card,
+body.dark .cd-range-card,
+body.dark .cd-stat-card,
+body.dark .cd-about-card,
+body.dark .cd-links-card,
+body.dark .cd-dev-card          { background: #1E293B; border-color: #334155; }
+body.dark .cd-chart-title       { color: #F1F5F9; }
+body.dark .period-btn           { background: #0F172A; border-color: #334155; color: #94A3B8; }
+body.dark .period-btn.active    { background: #1E3A5F; color: #3B82F6; border-color: #2563EB; }
+body.dark .cd-stat-label        { color: #64748B; }
+body.dark .cd-stat-val          { color: #F1F5F9; }
+body.dark .cd-stat-sub          { color: #94A3B8; }
+body.dark .cd-supply-bar        { background: #334155; }
+body.dark .cd-section-title     { color: #F1F5F9; border-bottom-color: #334155; }
+body.dark .cd-about-body        { color: #CBD5E1; }
+body.dark .cd-about-body a      { color: #3B82F6; }
+body.dark .cd-link-item         { background: #0F172A; border-color: #334155; color: #94A3B8; }
+body.dark .cd-link-item:hover   { color: #3B82F6; border-color: #3B82F6; }
+body.dark .cd-dev-val           { color: #F1F5F9; }
+body.dark .cd-dev-label         { color: #64748B; }
+body.dark .cd-range-label       { color: #94A3B8; }
+body.dark .cd-range-low,
+body.dark .cd-range-high        { color: #64748B; }
+body.dark .cd-range-track       { background: #334155; }
+body.dark .cd-read-more         { color: #3B82F6; }
+
+/* About / Investors pages */
+body.dark .about-page,
+body.dark .inv-section          { background: transparent; }
+body.dark .inv-form-card        { background: #1E293B; border-color: #334155; }
+body.dark .inv-form-card h3     { color: #F1F5F9; }
+body.dark .inv-field label      { color: #94A3B8; }
+body.dark .inv-field input,
+body.dark .inv-field select,
+body.dark .inv-field textarea   { background: #0F172A; border-color: #334155; color: #F1F5F9; }
+body.dark .inv-field input:focus,
+body.dark .inv-field textarea:focus { border-color: #3B82F6; }
+body.dark .inv-contact-note     { background: #1E3A5F; border-color: #2563EB; color: #94A3B8; }
+body.dark .inv-email-link       { color: #3B82F6; }
+body.dark .inv-section-title    { color: #F1F5F9; }
+body.dark .inv-body-text        { color: #94A3B8; }
+body.dark .inv-section-label    { color: #3B82F6; }
+
+/* Error pages */
+body.dark .error-page           { background: #0F172A; color: #F1F5F9; }
+
+/* Footer dark (already dark bg, minor adjustments) */
+body.dark .pf-footer            { background: #020617; }
+body.dark .pf-investor-band     { background: #0F172A; border-color: #1E293B; }

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard - Coin Scanner{% endblock %}</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+
+<body class="dashboard-page">
+
+<div class="dashboard-layout">
+
+    <aside class="dashboard-sidebar">
+        <h3>Account</h3>
+        <a href="{{ url_for('account') }}">Overview</a>
+        <a href="#">Watchlist</a>
+        <a href="#">Settings</a>
+        <a href="{{ url_for('home') }}">Back to Site</a>
+    </aside>
+
+    <main class="dashboard-main">
+        {% block content %}{% endblock %}
+    </main>
+
+</div>
+
+</body>
+</html>

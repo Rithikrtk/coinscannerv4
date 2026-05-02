@@ -1,0 +1,115 @@
+{% extends "layouts/base_auth.html" %}
+{% block title %}Login — CoinScanner{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+
+  <!-- ══ LEFT PANEL ══ -->
+  <div class="auth-left">
+    <a href="/" class="auth-logo">
+      <img src="/static/images/logo.png" alt="CoinScanner">
+      <div class="auth-logo-text">
+        <span class="auth-logo-name">COIN SCANNER</span>
+        <span class="auth-logo-tagline">A product of Agreed Financial Tech Pvt. Ltd.</span>
+      </div>
+    </a>
+    <div class="auth-left-content">
+      <h1>Your <span>crypto intelligence</span> platform</h1>
+      <p>Track live prices, compare exchanges and make smarter investment decisions — all in one place.</p>
+      <div class="auth-features">
+        <div><span class="auth-feature-check"><i class="fa-solid fa-check"></i></span> Real-time INR prices from CoinDCX</div>
+        <div><span class="auth-feature-check"><i class="fa-solid fa-check"></i></span> Compare 14+ Indian &amp; global exchanges</div>
+        <div><span class="auth-feature-check"><i class="fa-solid fa-check"></i></span> Save coins &amp; exchanges to watchlist</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ RIGHT PANEL ══ -->
+  <div class="auth-right">
+    <div class="auth-card">
+
+      <h2>Welcome back 👋</h2>
+      <p class="auth-subtitle">Log in to access your watchlist and dashboard</p>
+
+      <!-- Error message (shown when login fails) -->
+      {% if error %}
+      <div class="auth-alert auth-alert-error">
+        <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+      </div>
+      {% endif %}
+
+      <!-- Success: password was just reset -->
+      {% if request.args.get('reset') %}
+      <div class="auth-alert auth-alert-success">
+        <i class="fa-solid fa-circle-check"></i> Password reset successfully. Please log in.
+      </div>
+      {% endif %}
+
+      <!-- Success: account just verified -->
+      {% if request.args.get('verified') %}
+      <div class="auth-alert auth-alert-success">
+        <i class="fa-solid fa-circle-check"></i> Account verified! You can now log in.
+      </div>
+      {% endif %}
+
+      <form method="POST" action="/login" novalidate>
+
+        <!-- Email or Phone -->
+        <div class="form-group">
+          <label class="form-label">Email or Phone Number</label>
+          <div class="form-input-wrap">
+            <i class="fa-regular fa-envelope form-input-icon"></i>
+            <input
+              type="text"
+              name="identifier"
+              id="identifier"
+              placeholder="Email or Phone"
+              autocomplete="username"
+              required>
+          </div>
+        </div>
+
+        <!-- Password with eye toggle -->
+        <div class="form-group">
+          <div class="form-label-row">
+            <label class="form-label">Password</label>
+            <a href="/forgot-password" class="form-forgot-link">Forgot password?</a>
+          </div>
+          <div class="form-input-wrap">
+            <i class="fa-solid fa-lock form-input-icon"></i>
+            <input
+              type="password"
+              name="password"
+              id="authPwd"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+              required>
+            <!-- Eye toggle button — handled by auth.js -->
+            <button type="button" class="auth-eye-btn" data-target="authPwd" title="Show password">
+              <i class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Remember me -->
+        <div class="form-check-row">
+          <label class="form-check">
+            <input type="checkbox" name="remember" id="rememberMe">
+            <span class="form-check-label">Keep me logged in for 30 days</span>
+          </label>
+        </div>
+
+        <button type="submit" class="auth-btn">
+          <i class="fa-solid fa-right-to-bracket"></i> Log In
+        </button>
+      </form>
+
+      <div class="auth-switch">
+        Don't have an account? <a href="/signup">Sign up free</a>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}
