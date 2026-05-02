@@ -371,7 +371,69 @@ def get_coin_metadata():
         low    = float(t.get("low",   0) or 0)
         volume = float(t.get("volume",0) or 0)
 
-        image = f"https://assets.coincap.io/assets/icons/{symbol.lower()}@2x.png"
+        # Use CoinGecko static CDN for logos — best coverage, no auth needed
+        # Falls back to a letter avatar via onerror in templates
+        image = f"https://assets.coingecko.com/coins/images/1/small/{symbol.lower()}.png"
+        # Better: use a known symbol→CoinGecko image map for top coins
+        LOGO_MAP = {
+            "BTC":"https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
+            "ETH":"https://assets.coingecko.com/coins/images/279/small/ethereum.png",
+            "USDT":"https://assets.coingecko.com/coins/images/325/small/Tether.png",
+            "BNB":"https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png",
+            "SOL":"https://assets.coingecko.com/coins/images/4128/small/solana.png",
+            "XRP":"https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png",
+            "USDC":"https://assets.coingecko.com/coins/images/6319/small/usdc.png",
+            "ADA":"https://assets.coingecko.com/coins/images/975/small/cardano.png",
+            "AVAX":"https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png",
+            "DOGE":"https://assets.coingecko.com/coins/images/5/small/dogecoin.png",
+            "TRX":"https://assets.coingecko.com/coins/images/1094/small/tron-logo.png",
+            "DOT":"https://assets.coingecko.com/coins/images/12171/small/polkadot.png",
+            "LINK":"https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png",
+            "MATIC":"https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png",
+            "LTC":"https://assets.coingecko.com/coins/images/2/small/litecoin.png",
+            "SHIB":"https://assets.coingecko.com/coins/images/11939/small/shiba.png",
+            "UNI":"https://assets.coingecko.com/coins/images/12504/small/uniswap-uni.png",
+            "ATOM":"https://assets.coingecko.com/coins/images/1481/small/cosmos_hub.png",
+            "XLM":"https://assets.coingecko.com/coins/images/100/small/Stellar_symbol_black_RGB.png",
+            "ETC":"https://assets.coingecko.com/coins/images/453/small/ethereum-classic-logo.png",
+            "BCH":"https://assets.coingecko.com/coins/images/780/small/bitcoin-cash-circle.png",
+            "APT":"https://assets.coingecko.com/coins/images/26455/small/aptos_round.png",
+            "FIL":"https://assets.coingecko.com/coins/images/12817/small/filecoin.png",
+            "NEAR":"https://assets.coingecko.com/coins/images/10365/small/near.jpg",
+            "ARB":"https://assets.coingecko.com/coins/images/16547/small/photo_2023-03-29_21.47.00.jpeg",
+            "OP":"https://assets.coingecko.com/coins/images/25244/small/Optimism.png",
+            "INJ":"https://assets.coingecko.com/coins/images/12882/small/Secondary_Symbol.png",
+            "MKR":"https://assets.coingecko.com/coins/images/1364/small/Mark_Maker.png",
+            "AAVE":"https://assets.coingecko.com/coins/images/12645/small/AAVE.png",
+            "SUI":"https://assets.coingecko.com/coins/images/26375/small/sui_asset.jpeg",
+            "PEPE":"https://assets.coingecko.com/coins/images/29850/small/pepe-token.jpeg",
+            "WIF":"https://assets.coingecko.com/coins/images/33566/small/dogwifhat.jpg",
+            "BONK":"https://assets.coingecko.com/coins/images/28600/small/bonk.jpg",
+            "TON":"https://assets.coingecko.com/coins/images/17980/small/ton_symbol.png",
+            "XMR":"https://assets.coingecko.com/coins/images/69/small/monero_logo.png",
+            "ZEC":"https://assets.coingecko.com/coins/images/486/small/circle-zcash-color.png",
+            "ALGO":"https://assets.coingecko.com/coins/images/4380/small/download.png",
+            "VET":"https://assets.coingecko.com/coins/images/1167/small/VET_Token_Icon.png",
+            "FTM":"https://assets.coingecko.com/coins/images/4001/small/Fantom_round.png",
+            "SAND":"https://assets.coingecko.com/coins/images/12129/small/sandbox_logo.jpg",
+            "MANA":"https://assets.coingecko.com/coins/images/878/small/decentraland-mana.png",
+            "CRV":"https://assets.coingecko.com/coins/images/12124/small/Curve.png",
+            "COMP":"https://assets.coingecko.com/coins/images/10775/small/COMP.png",
+            "GRT":"https://assets.coingecko.com/coins/images/13397/small/Graph_Token.png",
+            "SNX":"https://assets.coingecko.com/coins/images/3406/small/SNX.png",
+            "RNDR":"https://assets.coingecko.com/coins/images/11636/small/rndr.png",
+            "FET":"https://assets.coingecko.com/coins/images/5681/small/Fetch.jpg",
+            "RUNE":"https://assets.coingecko.com/coins/images/6595/small/Rune200x200.png",
+            "KSM":"https://assets.coingecko.com/coins/images/9568/small/m4zRhP5e_400x400.jpg",
+            "FLOW":"https://assets.coingecko.com/coins/images/13446/small/5f6294c0c7a8cda55cb1c936_Flow_Wordmark.png",
+            "CHZ":"https://assets.coingecko.com/coins/images/8834/small/Chiliz.png",
+            "BAT":"https://assets.coingecko.com/coins/images/677/small/basic-attention-token.png",
+            "ZRX":"https://assets.coingecko.com/coins/images/863/small/0x.png",
+            "ENJ":"https://assets.coingecko.com/coins/images/1102/small/enjin-coin-logo.png",
+            "1INCH":"https://assets.coingecko.com/coins/images/13469/small/1inch-token.png",
+            "CAKE":"https://assets.coingecko.com/coins/images/12632/small/pancakeswap-cake-logo_%281%29.png",
+        }
+        image = LOGO_MAP.get(symbol, f"https://assets.coincap.io/assets/icons/{symbol.lower()}@2x.png")
 
         meta_map[symbol] = {
             "id":                 symbol,

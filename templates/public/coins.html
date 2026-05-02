@@ -204,14 +204,14 @@
           <td class="td-right th-hide-mobile td-muted">{{ coin.formatted_volume }}</td>
           <td class="td-right th-hide-mobile">
             <div class="hl-bar-wrap">
-              <span class="hl-low">₹{{ coin.high_24h | format_inr if coin.high_24h else '—' }}</span>
+              <span class="hl-low">₹{{ coin.low_24h | format_inr if coin.low_24h else '—' }}</span>
               <div class="hl-bar">
                 {% if coin.high_24h and coin.low_24h and coin.high_24h != coin.low_24h %}
                   {% set pct = ((coin.current_price - coin.low_24h) / (coin.high_24h - coin.low_24h) * 100) | round(1) %}
                   <div class="hl-bar-fill" style="width: {{ [pct, 100] | min }}%"></div>
                 {% endif %}
               </div>
-              <span class="hl-high">₹{{ coin.low_24h | format_inr if coin.low_24h else '—' }}</span>
+              <span class="hl-high">₹{{ coin.high_24h | format_inr if coin.high_24h else '—' }}</span>
             </div>
           </td>
           <td class="td-right td-spark">

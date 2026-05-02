@@ -509,12 +509,18 @@ document.addEventListener("DOMContentLoaded", function () {
     try {
       const currency = currentCurrency === "usd" ? "usd" : "inr";
       const symbol   = currentCurrency === "usd" ? "$" : "₹";
-      // Use our own Flask API which fetches from CoinDCX candles — no CoinGecko rate limit
-      const url      = `/api/coins/${id}/chart?currency=${currency}&days=7`;
-      const res  = await fetch(url);
+      // Fetch candles directly from CoinDCX browser-side (id is the DCX symbol e.g. "BTC")
+      const res  = await fetch(
+        `https://public.coindcx.com/market_data/candles/?pair=B-${id}_INR&interval=1d&limit=7`
+      );
       if (!res.ok) return;
-      const data = await res.json();
-      if (!data.prices) return;
+      const candles = await res.json();
+      const data = {
+        prices: candles.map(function(c) {
+          return [parseInt(c[0]) * 1000, parseFloat(c[4])];
+        }).filter(function(p) { return p[1] > 0; })
+      };
+      if (!data.prices || !data.prices.length) return;
 
       const prices = data.prices.map(function (p) { return p[1]; });
       const labels = data.prices.map(function (p) {

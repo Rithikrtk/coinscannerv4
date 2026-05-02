@@ -147,41 +147,59 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     }
 
-    // Render initial chart from server-side data (7D, already in the page)
-    try {
-      const initialData = JSON.parse(coinChartCanvas.dataset.prices || "[]");
-      buildDetailChart(initialData);
-    } catch (e) {
-      console.error("Chart init error:", e);
+    // Fetch candles directly from CoinDCX browser-side (browser IPs never blocked)
+    async function fetchCandlesFromBrowser(symbol, days) {
+      const interval = days <= 1 ? "1h" : days <= 7 ? "1d" : days <= 30 ? "1d" : "1w";
+      const limit    = days <= 1 ? 24  : Math.min(days, 30);
+      const res = await fetch(
+        `https://public.coindcx.com/market_data/candles/?pair=B-${symbol}_INR&interval=${interval}&limit=${limit}`
+      );
+      if (!res.ok) throw new Error("CoinDCX candles error");
+      const candles = await res.json();
+      // candle format: [time, open, high, low, close, volume]
+      return candles.map(function(c) {
+        return [parseInt(c[0]) * 1000, parseFloat(c[4])];
+      }).filter(function(p) { return p[1] > 0; });
     }
 
-    // Period buttons (7D / 30D / 90D / 1Y) — fetch fresh data on click
+    // Render initial chart — fetch from browser on load
+    (async function initChart() {
+      try {
+        const symbol = coinId.toUpperCase();
+        const data   = await fetchCandlesFromBrowser(symbol, 7);
+        buildDetailChart(data);
+      } catch (e) {
+        console.error("Chart init error:", e);
+        // Try server-side data as fallback
+        try {
+          const initialData = JSON.parse(coinChartCanvas.dataset.prices || "[]");
+          buildDetailChart(initialData);
+        } catch(e2) {}
+      }
+    })();
+
+    // Period buttons — fetch fresh candle data on click
     document.querySelectorAll(".period-btn").forEach(function (btn) {
       btn.addEventListener("click", async function () {
-        // Update active button state
         document.querySelectorAll(".period-btn").forEach(function (b) {
           b.classList.remove("active");
         });
         this.classList.add("active");
 
-        const days      = this.dataset.days;
+        const days      = parseInt(this.dataset.days) || 7;
         const loading   = document.getElementById("chartLoading");
         const container = document.querySelector(".cd-chart-container");
 
-        // Show loading state
         if (loading)   loading.style.display  = "flex";
         if (container) container.style.opacity = "0.3";
 
         try {
-          const url = `/api/coins/${coinId}/chart?currency=${pageCurrency}&days=${days}`;
-          const res = await fetch(url);
-          if (!res.ok) throw new Error("API error");
-          const data = await res.json();
-          buildDetailChart(data.prices || []);
+          const symbol = coinId.toUpperCase();
+          const data   = await fetchCandlesFromBrowser(symbol, days);
+          buildDetailChart(data);
         } catch (e) {
           console.error("Period chart fetch error:", e);
         } finally {
-          // Hide loading state regardless of success/failure
           if (loading)   loading.style.display  = "none";
           if (container) container.style.opacity = "1";
         }

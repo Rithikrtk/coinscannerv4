@@ -267,7 +267,7 @@
     <div class="coin-table-section">
         <div class="section-head">
             <span class="section-title">Top Cryptocurrencies</span>
-            <span class="section-badge">Top 25 by Market Cap</span>
+            <span class="section-badge">Top 25 by Volume</span>
             <a href="{{ url_for('coins') }}" class="section-link">View all coins →</a>
         </div>
         <div class="coin-table-box">
@@ -276,9 +276,8 @@
                 <div class="ct-th">Coin</div>
                 <div class="ct-th r">Price</div>
                 <div class="ct-th r">24h %</div>
-                <div class="ct-th r">7d %</div>
-                <div class="ct-th r">Market Cap</div>
-                <div class="ct-th r">7d Chart</div>
+                <div class="ct-th r">Volume</div>
+                <div class="ct-th r">24h High / Low</div>
             </div>
 
             {% if top_coins %}
@@ -330,21 +329,21 @@
                         </span>
                     </div>
 
-                    <div class="ct-chg ct-chg-7d">
-                        {% if coin.price_change_percentage_7d_in_currency is defined and coin.price_change_percentage_7d_in_currency %}
-                        <span class="ct-pill {% if coin.price_change_percentage_7d_in_currency >= 0 %}up{% else %}dn{% endif %}">
-                            {{ "▲" if coin.price_change_percentage_7d_in_currency >= 0 else "▼" }}
-                            {{ coin.price_change_percentage_7d_in_currency | round(2) | abs }}%
-                        </span>
-                        {% else %}
-                        <span style="color:#CBD5E1;font-size:12px;text-align:right;display:block;">—</span>
-                        {% endif %}
-                    </div>
+                    <div class="ct-mcap">{{ coin.formatted_volume }}</div>
 
-                    <div class="ct-mcap">{{ coin.formatted_mcap if coin.formatted_mcap else "—" }}</div>
-
-                    <div class="ct-spark" id="spark-{{ coin.id }}">
-                        <!-- SVG sparkline rendered by JS -->
+                    <div class="ct-spark">
+                        {% if coin.high_24h and coin.low_24h %}
+                        <div class="hl-bar-wrap">
+                            <span class="hl-low">₹{{ coin.low_24h | format_inr }}</span>
+                            <div class="hl-bar">
+                                {% if coin.high_24h != coin.low_24h %}
+                                {% set pct = ((coin.current_price - coin.low_24h) / (coin.high_24h - coin.low_24h) * 100) | round(1) %}
+                                <div class="hl-bar-fill" style="width: {{ [pct, 100] | min }}%"></div>
+                                {% endif %}
+                            </div>
+                            <span class="hl-high">₹{{ coin.high_24h | format_inr }}</span>
+                        </div>
+                        {% else %}—{% endif %}
                     </div>
 
                 </div>
