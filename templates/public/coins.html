@@ -159,7 +159,8 @@
           <th class="th-right">Price (INR)</th>
           <th class="th-right">24h Change</th>
           <th class="th-right th-hide-mobile">Volume</th>
-          <th class="th-right th-hide-mobile">Market Cap</th>
+          <th class="th-right th-hide-mobile">24h High / Low</th>
+          <th class="th-right">Chart</th>
           <th class="th-right">Details</th>
         </tr>
       </thead>
@@ -169,10 +170,10 @@
           data-id="{{ coin.id }}" data-name="{{ coin.name }}" data-symbol="{{ coin.symbol }}"
           data-image="{{ coin.image }}" data-price-inr="{{ coin.current_price }}"
           data-volume="{{ coin.total_volume }}" data-change="{{ chg }}"
-          data-marketcap="{{ coin.market_cap }}" data-rank="{{ coin.market_cap_rank }}"
+          data-marketcap="{{ coin.market_cap }}" data-rank="{{ loop.index }}"
           data-high="{{ coin.high_24h }}" data-low="{{ coin.low_24h }}"
           data-ath="{{ coin.ath }}" data-supply="{{ coin.circulating_supply }}">
-          <td class="td-rank">{{ coin.market_cap_rank or '—' }}</td>
+          <td class="td-rank">{{ loop.index }}</td>
           <td class="td-name">
             <div class="coin-tbl-identity">
               <div class="coin-tbl-img-wrap">
@@ -201,7 +202,23 @@
             <span class="chg-pill {{ 'up' if chg >= 0 else 'down' }}">{{ '▲' if chg >= 0 else '▼' }} {{ "%.2f"|format(chg|abs) }}%</span>
           </td>
           <td class="td-right th-hide-mobile td-muted">{{ coin.formatted_volume }}</td>
-          <td class="td-right th-hide-mobile td-muted">{{ coin.formatted_mcap }}</td>
+          <td class="td-right th-hide-mobile">
+            <div class="hl-bar-wrap">
+              <span class="hl-low">₹{{ coin.high_24h | format_inr if coin.high_24h else '—' }}</span>
+              <div class="hl-bar">
+                {% if coin.high_24h and coin.low_24h and coin.high_24h != coin.low_24h %}
+                  {% set pct = ((coin.current_price - coin.low_24h) / (coin.high_24h - coin.low_24h) * 100) | round(1) %}
+                  <div class="hl-bar-fill" style="width: {{ [pct, 100] | min }}%"></div>
+                {% endif %}
+              </div>
+              <span class="hl-high">₹{{ coin.low_24h | format_inr if coin.low_24h else '—' }}</span>
+            </div>
+          </td>
+          <td class="td-right td-spark">
+            <svg class="tbl-sparkline" id="spark-{{ coin.symbol }}"
+                 data-symbol="{{ coin.symbol }}"
+                 width="80" height="32" viewBox="0 0 80 32"></svg>
+          </td>
           <td class="td-right">
             <a href="{{ url_for('coin_page', coin_id=coin.id) }}" class="tbl-detail-btn" onclick="event.stopPropagation()">
               <i class="fa-solid fa-arrow-right"></i>
@@ -209,7 +226,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="7" class="tbl-empty">No coins found.</td></tr>
+        <tr><td colspan="8" class="tbl-empty">No coins found.</td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -292,14 +292,14 @@
                     data-volume="{{ coin.total_volume }}"
                     data-change="{{ coin.price_change_percentage_24h }}"
                     data-marketcap="{{ coin.market_cap }}"
-                    data-rank="{{ coin.market_cap_rank }}"
+                    data-rank="{{ loop.index }}"
                     data-high="{{ coin.high_24h }}"
                     data-low="{{ coin.low_24h }}"
                     data-ath="{{ coin.ath }}"
                     data-supply="{{ coin.circulating_supply }}"
                     data-sparkline='{{ coin.sparkline_in_7d.price | tojson if coin.sparkline_in_7d else "[]" }}'>
 
-                    <div class="ct-rank">{{ coin.market_cap_rank }}</div>
+                    <div class="ct-rank">{{ loop.index }}</div>
 
                     <div class="ct-coin">
                         <img src="{{ coin.image }}" alt="{{ coin.name }}" class="ct-logo"

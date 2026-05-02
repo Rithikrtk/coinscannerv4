@@ -216,7 +216,6 @@ document.addEventListener("DOMContentLoaded", function () {
       const range = max - min || 1;
       const W = 80, H = 24;
 
-      // Map prices to SVG coordinates
       const pts = prices.map(function (p, i) {
         const x = (i / (prices.length - 1)) * W;
         const y = H - ((p - min) / range) * (H - 2) - 1;
@@ -227,10 +226,68 @@ document.addEventListener("DOMContentLoaded", function () {
       const color = isUp ? "#16A34A" : "#DC2626";
 
       svg.innerHTML = `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`;
-    } catch (e) {
-      // Silent fail — sparkline just won't show
-    }
+    } catch (e) {}
   });
+
+
+  /* ══════════════════════════════════════════════════════
+     3b. TABLE SPARKLINES — browser-side CoinDCX candle fetch
+     Fetches 7-day candle data directly from CoinDCX from the
+     browser (browser IPs are never blocked, only server IPs).
+     Renders SVG sparkline in the chart column of the coins table.
+  ══════════════════════════════════════════════════════ */
+  (async function loadTableSparklines() {
+    const svgs = document.querySelectorAll(".tbl-sparkline[data-symbol]");
+    if (!svgs.length) return;
+
+    // Fetch sparklines in small batches to avoid hammering the API
+    async function fetchSparkline(symbol) {
+      try {
+        const res = await fetch(
+          `https://public.coindcx.com/market_data/candles/?pair=B-${symbol}_INR&interval=1d&limit=7`
+        );
+        if (!res.ok) return [];
+        const data = await res.json();
+        // CoinDCX candle: [time, open, high, low, close, volume]
+        return data.map(function(c) { return parseFloat(c[4]); }).filter(Boolean);
+      } catch(e) {
+        return [];
+      }
+    }
+
+    function drawSparkline(svg, prices, isUp) {
+      if (prices.length < 2) return;
+      const W = 80, H = 32;
+      const min   = Math.min(...prices);
+      const max   = Math.max(...prices);
+      const range = max - min || 1;
+      const pts   = prices.map(function(p, i) {
+        const x = (i / (prices.length - 1)) * W;
+        const y = H - ((p - min) / range) * (H - 4) - 2;
+        return x.toFixed(1) + "," + y.toFixed(1);
+      }).join(" ");
+      const color = isUp ? "#16a34a" : "#dc2626";
+      svg.innerHTML = `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`;
+    }
+
+    // Process in batches of 5 to be respectful to the API
+    const batch = 5;
+    for (let i = 0; i < svgs.length; i += batch) {
+      const chunk = Array.from(svgs).slice(i, i + batch);
+      await Promise.all(chunk.map(async function(svg) {
+        const symbol = svg.dataset.symbol;
+        const prices = await fetchSparkline(symbol);
+        if (prices.length >= 2) {
+          const isUp = prices[prices.length - 1] >= prices[0];
+          drawSparkline(svg, prices, isUp);
+        }
+      }));
+      // Small delay between batches
+      if (i + batch < svgs.length) {
+        await new Promise(function(r) { setTimeout(r, 300); });
+      }
+    }
+  })();
 
 
   /* ══════════════════════════════════════════════════════

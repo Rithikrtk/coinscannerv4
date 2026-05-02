@@ -292,6 +292,39 @@ tr.mover-row td { display: table-cell !important; }
 .td-right { text-align: right; }
 .td-price { font-weight: 800; }
 .td-muted { color: #475569; font-size: 13px; }
+.td-spark { text-align: right; vertical-align: middle; }
+
+/* Table sparkline SVG */
+.tbl-sparkline {
+  display: inline-block;
+  vertical-align: middle;
+  overflow: visible;
+}
+
+/* 24h High / Low range bar */
+.hl-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+}
+.hl-bar {
+  width: 60px;
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.hl-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #10b981);
+  border-radius: 2px;
+}
+.hl-low  { color: #dc2626; font-weight: 600; }
+.hl-high { color: #16a34a; font-weight: 600; }
 
 /* Coin identity in table */
 .coin-tbl-identity {
