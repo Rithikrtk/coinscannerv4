@@ -149,16 +149,20 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Fetch candles directly from CoinDCX browser-side (browser IPs never blocked)
     async function fetchCandlesFromBrowser(symbol, days) {
-      const interval = days <= 1 ? "1h" : days <= 7 ? "1d" : days <= 30 ? "1d" : "1w";
-      const limit    = days <= 1 ? 24  : Math.min(days, 30);
+      const interval = days <= 1 ? "1h" : "1d";
+      const limit    = days <= 1 ? 24 : Math.min(days, 30);
       const res = await fetch(
         `https://public.coindcx.com/market_data/candles/?pair=B-${symbol}_INR&interval=${interval}&limit=${limit}`
       );
-      if (!res.ok) throw new Error("CoinDCX candles error");
+      if (!res.ok) throw new Error("CoinDCX candles error " + res.status);
       const candles = await res.json();
-      // candle format: [time, open, high, low, close, volume]
-      return candles.map(function(c) {
-        return [parseInt(c[0]) * 1000, parseFloat(c[4])];
+      if (!Array.isArray(candles)) throw new Error("Unexpected candle format");
+      // CoinDCX candles are objects: {time, open, high, low, close, volume}
+      // sorted descending by time — reverse to get oldest→newest for chart
+      return candles.slice().reverse().map(function(c) {
+        const ts    = c.time || (c[0] * 1000);   // ms timestamp
+        const close = c.close != null ? parseFloat(c.close) : parseFloat(c[4]);
+        return [ts, close];
       }).filter(function(p) { return p[1] > 0; });
     }
 
@@ -265,9 +269,12 @@ document.addEventListener("DOMContentLoaded", function () {
           `https://public.coindcx.com/market_data/candles/?pair=B-${symbol}_INR&interval=1d&limit=7`
         );
         if (!res.ok) return [];
-        const data = await res.json();
-        // CoinDCX candle: [time, open, high, low, close, volume]
-        return data.map(function(c) { return parseFloat(c[4]); }).filter(Boolean);
+        const candles = await res.json();
+        if (!Array.isArray(candles)) return [];
+        // Object format {time, open, high, low, close, volume}, sorted desc → reverse
+        return candles.slice().reverse().map(function(c) {
+          return c.close != null ? parseFloat(c.close) : parseFloat(c[4]);
+        }).filter(Boolean);
       } catch(e) {
         return [];
       }

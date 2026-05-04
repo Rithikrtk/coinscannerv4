@@ -307,11 +307,11 @@ tr.mover-row td { display: table-cell !important; }
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  color: #64748b;
   white-space: nowrap;
+  justify-content: flex-end;
 }
 .hl-bar {
-  width: 60px;
+  width: 50px;
   height: 4px;
   background: #e2e8f0;
   border-radius: 2px;
@@ -320,11 +320,12 @@ tr.mover-row td { display: table-cell !important; }
 }
 .hl-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #10b981);
+  background: #3b82f6;
   border-radius: 2px;
+  min-width: 3px;
 }
-.hl-low  { color: #dc2626; font-weight: 600; font-size: 11px; }
-.hl-high { color: #16a34a; font-weight: 600; font-size: 11px; }
+.hl-low  { color: #dc2626; font-weight: 600; font-size: 11px; min-width: 70px; text-align: right; }
+.hl-high { color: #16a34a; font-weight: 600; font-size: 11px; min-width: 70px; text-align: left; }
 
 /* Coin identity in table */
 .coin-tbl-identity {

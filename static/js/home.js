@@ -472,8 +472,8 @@ document.addEventListener("DOMContentLoaded", function () {
     modal.classList.remove("hidden");
     document.body.style.overflow = "hidden";
 
-    // Load chart async
-    loadModalChart(id);
+    // Load chart async — pass row for fallback data
+    loadModalChart(id, row);
   }
 
   // Attach click listener to all coin rows
@@ -501,79 +501,100 @@ document.addEventListener("DOMContentLoaded", function () {
    * Fetch 7-day price history and render a Chart.js line chart in the modal.
    * @param {string} id - CoinGecko coin ID
    */
-  async function loadModalChart(id) {
+  async function loadModalChart(id, row) {
     const canvas = document.getElementById("modalChart");
     if (!canvas) return;
     if (modalChart) { modalChart.destroy(); modalChart = null; }
 
+    const symStr = currentCurrency === "usd" ? "$" : "₹";
+
+    // Try CoinDCX candles first (browser-side, no server blocking)
     try {
-      const currency = currentCurrency === "usd" ? "usd" : "inr";
-      const symbol   = currentCurrency === "usd" ? "$" : "₹";
-      // Fetch candles directly from CoinDCX browser-side (id is the DCX symbol e.g. "BTC")
-      const res  = await fetch(
-        `https://public.coindcx.com/market_data/candles/?pair=B-${id}_INR&interval=1d&limit=7`
+      const res = await fetch(
+        `https://public.coindcx.com/market_data/candles/?pair=B-${id}_INR&interval=1d&limit=7`,
+        { mode: "cors" }
       );
-      if (!res.ok) return;
-      const candles = await res.json();
-      const data = {
-        prices: candles.map(function(c) {
-          return [parseInt(c[0]) * 1000, parseFloat(c[4])];
-        }).filter(function(p) { return p[1] > 0; })
-      };
-      if (!data.prices || !data.prices.length) return;
+      if (res.ok) {
+        const candles = await res.json();
+        if (Array.isArray(candles) && candles.length > 0) {
+          const prices = candles.slice().reverse().map(function(c) {
+            return c.close != null ? parseFloat(c.close) : parseFloat(c[4]);
+          }).filter(Boolean);
+          const labels = candles.slice().reverse().map(function(c, i) {
+            const d = new Date((c.time || c[0] * 1000));
+            return d.toLocaleDateString("en-IN", { day:"2-digit", month:"short" });
+          });
+          if (prices.length >= 2) {
+            drawModalChart(canvas, labels, prices, symStr);
+            return;
+          }
+        }
+      }
+    } catch(e) {
+      console.warn("Candle fetch failed, using fallback:", e.message);
+    }
 
-      const prices = data.prices.map(function (p) { return p[1]; });
-      const labels = data.prices.map(function (p) {
-        return new Date(p[0]).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
-      });
+    // Fallback: build a 2-point chart from 24h low → current price
+    if (row) {
+      const low   = parseFloat(row.dataset.low  || 0);
+      const high  = parseFloat(row.dataset.high || 0);
+      const price = parseFloat(row.dataset.priceInr || 0);
+      if (low && high && price) {
+        const prices = [low, (low + high) / 2, price];
+        const labels = ["24h Low", "Mid", "Now"];
+        drawModalChart(canvas, labels, prices, symStr);
+      }
+    }
+  }
 
-      modalChart = new Chart(canvas.getContext("2d"), {
-        type: "line",
-        data: {
-          labels,
-          datasets: [{
-            data:            prices,
-            borderColor:     "#3975EA",
-            borderWidth:     2,
-            tension:         0.4,
-            pointRadius:     0,
-            fill:            false,
-          }],
-        },
-        options: {
-          responsive:          true,
-          maintainAspectRatio: false,
-          interaction:         { mode: "index", intersect: false },
-          plugins: {
-            legend:  { display: false },
-            tooltip: {
-              callbacks: {
-                label: function (item) {
-                  return " " + symbol + item.formattedValue;
-                },
+  function drawModalChart(canvas, labels, prices, symStr) {
+    if (modalChart) { modalChart.destroy(); modalChart = null; }
+    const isUp  = prices[prices.length - 1] >= prices[0];
+    const color = isUp ? "#16a34a" : "#dc2626";
+    modalChart = new Chart(canvas.getContext("2d"), {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          data:            prices,
+          borderColor:     color,
+          borderWidth:     2,
+          tension:         0.4,
+          pointRadius:     0,
+          fill:            false,
+        }],
+      },
+      options: {
+        responsive:          true,
+        maintainAspectRatio: false,
+        interaction:         { mode: "index", intersect: false },
+        plugins: {
+          legend:  { display: false },
+          tooltip: {
+            callbacks: {
+              label: function (item) {
+                return " " + symStr + item.formattedValue;
               },
             },
           },
-          scales: {
+        },
+        scales: {
             x: { display: false },
             y: {
               grid:  { color: "#e5e7eb" },
               ticks: {
                 color: "#64748b",
                 callback: function (v) {
-                  if (v >= 1e3)  return symbol + v.toLocaleString("en-IN", { maximumFractionDigits: 0 });
-                  if (v >= 1)    return symbol + parseFloat(v.toFixed(2));
-                  if (v >= 0.01) return symbol + parseFloat(v.toFixed(4));
-                  return symbol + parseFloat(v.toFixed(6));
+                  if (v >= 1e3)  return symStr + v.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+                  if (v >= 1)    return symStr + parseFloat(v.toFixed(2));
+                  if (v >= 0.01) return symStr + parseFloat(v.toFixed(4));
+                  return symStr + parseFloat(v.toFixed(6));
                 },
               },
             },
           },
         },
       });
-    } catch (e) {
-      console.error("Modal chart error:", e);
-    }
   }
 
   // Pre-fetch USD prices in the background so toggle is instant
@@ -650,9 +671,10 @@ async function loadTrendingStrip() {
       const chgStr = change != null
         ? `<span class="trend-chip-chg ${change >= 0 ? "up" : "dn"}">${change >= 0 ? "▲" : "▼"} ${Math.abs(change).toFixed(1)}%</span>`
         : "";
-
+      // Use symbol (e.g. "BTC") for URL — our coin detail page uses DCX symbols
+      const sym = (c.symbol || "").toUpperCase();
       return `
-        <a href="/coin/${c.id}" class="trend-chip">
+        <a href="/coin/${sym}" class="trend-chip">
           <span class="trend-chip-rank">#${i + 1}</span>
           <img src="${c.small}" alt="${c.name}" class="trend-chip-img" onerror="this.style.display='none'">
           <span class="trend-chip-name">${c.name}</span>

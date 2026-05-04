@@ -627,7 +627,7 @@
 
 .ct-head {
     display: grid;
-    grid-template-columns: 40px minmax(160px,2.2fr) minmax(120px,1.2fr) 90px 90px minmax(120px,1.3fr) 100px;
+    grid-template-columns: 40px minmax(160px,2.2fr) minmax(120px,1.2fr) 90px 100px minmax(200px,1.8fr);
     gap: 8px;
     padding: 11px 20px;
     background: #F8FAFC;
@@ -648,7 +648,7 @@
 
 .ct-row {
     display: grid;
-    grid-template-columns: 40px minmax(160px,2.2fr) minmax(120px,1.2fr) 90px 90px minmax(120px,1.3fr) 100px;
+    grid-template-columns: 40px minmax(160px,2.2fr) minmax(120px,1.2fr) 90px 100px minmax(200px,1.8fr);
     gap: 8px;
     padding: 12px 20px;
     border-bottom: 1px solid #F8FAFC;
@@ -1197,19 +1197,17 @@
     .mover-card { min-width: 155px; padding: 12px 14px; }
     .mover-price { font-size: 14px; }
 
-    /* Coin table — hide 7d% and market cap on mobile */
+    /* Coin table — hide volume and HL on mobile */
     .coin-table-section { padding: 14px 16px 0; }
 
     .ct-head,
     .ct-row {
-        grid-template-columns: 32px 2fr 1.1fr 72px 80px;
+        grid-template-columns: 32px 2fr 1.1fr 72px;
     }
 
-    /* Hide 7d%, mcap, spark columns */
+    /* Hide volume and HL columns on mobile */
     .ct-head .ct-th:nth-child(5),
     .ct-head .ct-th:nth-child(6),
-    .ct-head .ct-th:nth-child(7),
-    .ct-row  .ct-chg-7d,
     .ct-row  .ct-mcap,
     .ct-row  .ct-spark { display: none; }
 
@@ -1555,3 +1553,29 @@ body.dark .news-cat-chip {
     /* Fix bottom tab bar overlap — add bottom padding to last section */
     .news-section { padding-bottom: 80px; }
 }
+
+/* ── HIGH/LOW BAR (home page coin table) ── */
+.hl-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  white-space: nowrap;
+  justify-content: flex-end;
+}
+.hl-bar {
+  width: 40px;
+  height: 4px;
+  background: #2a3a5c;
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.hl-bar-fill {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 2px;
+  min-width: 3px;
+}
+.hl-low  { color: #f87171; font-weight: 600; font-size: 10.5px; min-width: 60px; text-align: right; }
+.hl-high { color: #4ade80; font-weight: 600; font-size: 10.5px; min-width: 60px; text-align: left; }

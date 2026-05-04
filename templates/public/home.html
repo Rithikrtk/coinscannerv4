@@ -76,7 +76,7 @@
 
     <!-- ③ TRENDING STRIP -->
     <div class="trending-strip">
-        <div class="trending-strip-label">🔥 Hot Right Now</div>
+        <div class="trending-strip-label">📈 Market Movers</div>
         <div class="trending-strip-div"></div>
         <div class="trending-chips" id="trendingChips">
             <!-- Populated by home.js -->
@@ -113,7 +113,7 @@
                     <span class="mover-tab-dot lose-dot"></span> Losers
                 </button>
                 <button class="mover-tab" data-tab="picks">
-                    <span class="mover-tab-dot pick-dot"></span> Picks
+                    <span class="mover-tab-dot pick-dot"></span> Opportunities
                 </button>
             </div>
         </div>
@@ -131,7 +131,7 @@
                     data-volume="{{ coin.total_volume }}"
                     data-change="{{ coin.price_change_percentage_24h }}"
                     data-marketcap="{{ coin.market_cap }}"
-                    data-rank="{{ coin.market_cap_rank }}"
+                    data-rank="{{ loop.index }}"
                     data-high="{{ coin.high_24h }}"
                     data-low="{{ coin.low_24h }}"
                     data-ath="{{ coin.ath }}"
@@ -154,7 +154,7 @@
                              onerror="this.style.display='none'">
                         <div class="mover-name-wrap">
                             <span class="mover-name">{{ coin.name }}</span>
-                            <span class="mover-symbol">{{ coin.symbol | upper }} · #{{ coin.market_cap_rank }}</span>
+                            <span class="mover-symbol">{{ coin.symbol | upper }}</span>
                         </div>
                     </div>
                     <div class="mover-price price-cell">₹{{ coin.formatted_price }}</div>
@@ -179,7 +179,7 @@
                     data-volume="{{ coin.total_volume }}"
                     data-change="{{ coin.price_change_percentage_24h }}"
                     data-marketcap="{{ coin.market_cap }}"
-                    data-rank="{{ coin.market_cap_rank }}"
+                    data-rank="{{ loop.index }}"
                     data-high="{{ coin.high_24h }}"
                     data-low="{{ coin.low_24h }}"
                     data-ath="{{ coin.ath }}"
@@ -202,7 +202,7 @@
                              onerror="this.style.display='none'">
                         <div class="mover-name-wrap">
                             <span class="mover-name">{{ coin.name }}</span>
-                            <span class="mover-symbol">{{ coin.symbol | upper }} · #{{ coin.market_cap_rank }}</span>
+                            <span class="mover-symbol">{{ coin.symbol | upper }}</span>
                         </div>
                     </div>
                     <div class="mover-price price-cell">₹{{ coin.formatted_price }}</div>
@@ -227,7 +227,7 @@
                     data-volume="{{ coin.total_volume }}"
                     data-change="{{ coin.price_change_percentage_24h }}"
                     data-marketcap="{{ coin.market_cap }}"
-                    data-rank="{{ coin.market_cap_rank }}"
+                    data-rank="{{ loop.index }}"
                     data-high="{{ coin.high_24h }}"
                     data-low="{{ coin.low_24h }}"
                     data-ath="{{ coin.ath }}"
@@ -250,7 +250,7 @@
                              onerror="this.style.display='none'">
                         <div class="mover-name-wrap">
                             <span class="mover-name">{{ coin.name }}</span>
-                            <span class="mover-symbol">{{ coin.symbol | upper }} · #{{ coin.market_cap_rank }}</span>
+                            <span class="mover-symbol">{{ coin.symbol | upper }}</span>
                         </div>
                     </div>
                     <div class="mover-price price-cell">₹{{ coin.formatted_price }}</div>

@@ -98,12 +98,8 @@
 
         <div class="cd-stat-card">
           <span class="cd-stat-label"><i class="fa-solid fa-chart-pie"></i> Market Cap</span>
-          <strong class="cd-stat-val">{{ sym }}{{ "{:,.0f}".format(md.market_cap.get(curr,0)) }}</strong>
-          {% if md.market_cap_change_percentage_24h %}
-          <span class="cd-stat-sub {{ 'up' if md.market_cap_change_percentage_24h > 0 else 'down' }}">
-            {{ "▲" if md.market_cap_change_percentage_24h > 0 else "▼" }}{{ "{:.2f}".format(md.market_cap_change_percentage_24h|abs) }}% 24h
-          </span>
-          {% endif %}
+          {% set mc = md.market_cap.get(curr,0) %}
+          <strong class="cd-stat-val">{% if mc %}{{ sym }}{{ "{:,.0f}".format(mc) }}{% else %}—{% endif %}</strong>
         </div>
 
         <div class="cd-stat-card">
@@ -113,18 +109,14 @@
 
         <div class="cd-stat-card">
           <span class="cd-stat-label"><i class="fa-solid fa-trophy"></i> All Time High</span>
-          <strong class="cd-stat-val cd-ath">
-            {% set ath_val = md.ath.get(curr,0) %}{{ sym }}{{ "{:,.6f}".format(ath_val) if ath_val < 1 else "{:,.2f}".format(ath_val) }}
-          </strong>
-          {% if md.ath_date and md.ath_date.get(curr) %}<span class="cd-stat-sub">{{ md.ath_date.get(curr)[:10] }}</span>{% endif %}
+          {% set ath_val = md.ath.get(curr,0) %}
+          <strong class="cd-stat-val cd-ath">{% if ath_val %}{{ sym }}{{ "{:,.6f}".format(ath_val) if ath_val < 1 else "{:,.2f}".format(ath_val) }}{% else %}—{% endif %}</strong>
         </div>
 
         <div class="cd-stat-card">
           <span class="cd-stat-label"><i class="fa-solid fa-arrow-trend-down"></i> All Time Low</span>
-          <strong class="cd-stat-val">
-            {% set atl_val = md.atl.get(curr,0) %}{{ sym }}{{ "{:,.6f}".format(atl_val) if atl_val < 1 else "{:,.2f}".format(atl_val) }}
-          </strong>
-          {% if md.atl_date and md.atl_date.get(curr) %}<span class="cd-stat-sub">{{ md.atl_date.get(curr)[:10] }}</span>{% endif %}
+          {% set atl_val = md.atl.get(curr,0) %}
+          <strong class="cd-stat-val">{% if atl_val %}{{ sym }}{{ "{:,.6f}".format(atl_val) if atl_val < 1 else "{:,.2f}".format(atl_val) }}{% else %}—{% endif %}</strong>
         </div>
 
         <div class="cd-stat-card">

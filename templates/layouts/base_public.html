@@ -55,7 +55,7 @@
                     <img src="{{ url_for('static', filename='images/logo.png') }}" alt="CoinScanner">
                     <div class="logo-text">
                         <span class="logo-name">COIN SCANNER</span>
-                        <span class="logo-tagline">A product of Agreed Financial Tech Pvt. Ltd.</span>
+                        <span class="logo-tagline">Real-time crypto opportunity scanner</span>
                     </div>
                 </a>
 
@@ -66,7 +66,7 @@
                 <nav class="main-nav" id="mainNav">
                     <a href="{{ url_for('home') }}"    class="{% if page == 'home'    %}active{% endif %}">Home</a>
                     <a href="{{ url_for('compare') }}" class="{% if page == 'compare' %}active{% endif %}">Compare</a>
-                    <a href="{{ url_for('coins') }}"   class="{% if page == 'coins'   %}active{% endif %}">Coins</a>
+                    <a href="{{ url_for('coins') }}"   class="{% if page == 'coins'   %}active{% endif %}">Markets</a>
                     <a href="{{ url_for('news') }}"    class="{% if page == 'news'    %}active{% endif %}">News</a>
                 </nav>
 
@@ -88,7 +88,7 @@
                             <p class="account-email">{{ session.get('user_email') }}</p>
                             <div class="account-section">
                                 <span class="section-title">Services</span>
-                                <a href="{{ url_for('coins') }}">Coins</a>
+                                <a href="{{ url_for('coins') }}">Markets</a>
                                 <a href="{{ url_for('compare') }}">Compare</a>
                                 <a href="{{ url_for('news') }}">News</a>
                             </div>
@@ -141,7 +141,7 @@
                         <img src="/static/images/logo.png" alt="CoinScanner">
                         <div class="pf-logo-text">
                             <span class="pf-logo-name">COIN SCANNER</span>
-                            <span class="pf-logo-tagline">A product of Agreed Financial Tech Pvt. Ltd.</span>
+                            <span class="pf-logo-tagline">Real-time crypto opportunity scanner</span>
                         </div>
                     </a>
                     <div class="pf-social">
@@ -161,14 +161,13 @@
                     <h4>Platform</h4>
                     <a href="{{ url_for('home') }}">Home</a>
                     <a href="{{ url_for('compare') }}">Compare Exchanges</a>
-                    <a href="{{ url_for('coins') }}">Coins</a>
+                    <a href="{{ url_for('coins') }}">Markets</a>
                     <a href="{{ url_for('news') }}">News</a>
                     <a href="/about">About Us</a>
                 </div>
 
                 <div class="pf-col">
                     <h4>Support</h4>
-                    <a href="/about#faq">FAQ</a>
                     <a href="/about#contact">Contact Us</a>
                     <a href="/about">About</a>
                 </div>
@@ -192,7 +191,7 @@
                     <div>
                         <div class="pf-investor-title">Investor Relations</div>
                         <p class="pf-investor-desc">
-                            We're here to connect with investors who share our vision — bringing investors closer, opening doors for conversations, and building partnerships that lead to real growth. Together, we can turn opportunities into lasting impact.
+                            We're here to connect with investors who share our vision — bringing traders and investors closer, opening doors for conversations, and building partnerships that lead to real growth. Together, we can turn opportunities into lasting impact.
                         </p>
                     </div>
                 </div>
@@ -239,7 +238,7 @@
   <a href="{{ url_for('coins') }}"
      class="tab-item {% if page == 'coins' or page == 'coin' %}active{% endif %}">
     <span class="tab-icon"><i class="fa-solid fa-coins"></i></span>
-    <span class="tab-label">Coins</span>
+    <span class="tab-label">Markets</span>
   </a>
 
   <a href="{{ url_for('news') }}"
