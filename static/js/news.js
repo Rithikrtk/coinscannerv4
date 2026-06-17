@@ -220,6 +220,15 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  // Prevent direct-read anchors inside cards from triggering the modal click
+  document.querySelectorAll("a.card-cta, a.meta-read").forEach(function (a) {
+    a.addEventListener("click", function (e) {
+      // Stop the click from bubbling to the parent .news-modal-trigger
+      e.stopPropagation();
+      // Let the anchor navigate normally (opens in new tab because of target="_blank")
+    });
+  });
+
   // Close buttons inside the modal
   if (modalClose)  modalClose.addEventListener("click",  closeNewsModal);
   if (modalClose2) modalClose2.addEventListener("click", closeNewsModal);

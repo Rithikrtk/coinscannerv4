@@ -60,7 +60,7 @@
           {{ articles[0].pubDate[:10] }}
         </span>
         {% endif %}
-        <span class="meta-read">Read story <i class="fa-solid fa-arrow-right"></i></span>
+        <a class="meta-read" href="{{ articles[0].link or '#' }}" target="_blank" rel="noopener noreferrer">Read story <i class="fa-solid fa-arrow-right"></i></a>
       </div>
     </div>
     {% if articles[0].image_url %}
@@ -113,11 +113,11 @@
         {% if art.description %}
         <p class="card-desc">{{ art.description[:100] }}{% if art.description|length > 100 %}…{% endif %}</p>
         {% endif %}
-        <div class="card-footer">
+          <div class="card-footer">
           {% if art.pubDate %}
           <span class="card-date">{{ art.pubDate[:10] }}</span>
           {% endif %}
-          <span class="card-cta">Read <i class="fa-solid fa-arrow-right"></i></span>
+          <a class="card-cta" href="{{ art.link or '#' }}" target="_blank" rel="noopener noreferrer">Read <i class="fa-solid fa-arrow-right"></i></a>
         </div>
       </div>
     </div>
