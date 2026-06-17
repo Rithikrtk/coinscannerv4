@@ -34,7 +34,7 @@ Live prices, exchange comparison, market news — all in one place.
 | Fonts | Google Fonts — Inter + Plus Jakarta Sans |
 | Prices | CoinDCX API (free, no key) + CoinGecko API (free, no key) |
 | News | newsdata.io (free tier, needs API key) |
-| Deployment | Gunicorn + Heroku / Railway / Render |
+| Deployment | Gunicorn + Heroku / Railway / Render / AWS |
 
 ---
 
@@ -190,7 +190,15 @@ Your `.env` file should look like this:
 ```
 SECRET_KEY=your-very-long-random-secret-key-here
 NEWS_API_KEY=pub_7c5030553f694cd78f8ac22e82c658eb
+RESEND_API_KEY=your-resend-api-key-here
+SMS_OTP_PROVIDER=telesign
+TELESIGN_CUSTOMER_ID=your-telesign-customer-id
+TELESIGN_API_KEY=your-telesign-api-key
 ```
+
+Use `RESEND_API_KEY` to enable email OTP delivery via Resend. If it is not set, email verification OTPs are printed to the terminal for development.
+
+Use `SMS_OTP_PROVIDER=fast2sms` to send OTPs via Fast2SMS, or `SMS_OTP_PROVIDER=telesign` to send via Telesign. If you use Telesign, set `TELESIGN_CUSTOMER_ID` and `TELESIGN_API_KEY`; if you use Fast2SMS, set `FAST2SMS_API_KEY`.
 
 **Generate a secure SECRET_KEY:**
 ```bash
@@ -206,10 +214,37 @@ Copy the output and paste it as your SECRET_KEY.
 ### Step 5 — Run the App
 
 ```bash
-python3 app.py
+python3 application.py
 ```
 
 You should see:
+
+## ☁️ AWS Deployment Path
+
+The recommended AWS setup for this app is:
+
+1. Amazon RDS PostgreSQL for the database.
+2. Elastic Beanstalk or EC2 with Gunicorn for hosting.
+3. AWS SES for email OTP delivery.
+4. Application Load Balancer or CloudFront in front of the app with HTTPS.
+
+### Environment variables on AWS
+
+```bash
+SECRET_KEY=your-long-random-secret
+DATABASE_URL=postgresql://USER:PASSWORD@RDS-ENDPOINT:5432/coinscanner
+EMAIL_PROVIDER=aws_ses
+AWS_REGION=us-east-1
+AWS_SES_FROM_EMAIL=noreply@your-domain.com
+FLASK_ENV=production
+SESSION_COOKIE_SECURE=true
+```
+
+### Deployment notes
+
+The app already runs under Gunicorn via the existing `Procfile` (`gunicorn application:app --workers 1 --timeout 120 --bind 0.0.0.0:$PORT`). Behind an AWS load balancer, `ProxyFix` lets Flask trust `X-Forwarded-Proto`, so secure cookies and HSTS behave correctly.
+
+For the database, keep SQLite for local development and point `DATABASE_URL` at RDS in AWS. The database layer automatically switches to PostgreSQL when that variable is set.
 ```
  * Running on http://127.0.0.1:5000
 ```
@@ -232,11 +267,33 @@ Open your browser and go to: **http://localhost:5000**
 
 ### Deploy to Render
 
+For trial and error, Render is the fastest path because it can provision the web service and PostgreSQL together.
+
 1. Create account at [render.com](https://render.com)
-2. New → Web Service → Connect GitHub repo
-3. Build command: `pip install -r requirements.txt`
-4. Start command: `gunicorn app:app`
-5. Add environment variables in Render dashboard
+2. Push this repo to GitHub
+3. In Render, choose **New + → Blueprint** and point it at the repo
+4. Render will read [render.yaml](render.yaml) and create:
+    - the Flask web service
+    - a PostgreSQL database
+    - a generated `SECRET_KEY`
+5. After the service is created, open the Render dashboard and fill in any secrets you want to test later:
+    - `NEWS_API_KEY`
+    - `RESEND_API_KEY`
+    - `COINDCX_API_KEY`
+    - `COINDCX_SECRET`
+    - `FAST2SMS_API_KEY`
+    - `TELESIGN_CUSTOMER_ID`
+    - `TELESIGN_API_KEY`
+    - `AWS_REGION`
+    - `AWS_SES_FROM_EMAIL`
+6. You can leave those blank during initial deployment and add them later without redeploying the whole app.
+
+If you prefer manual setup instead of Blueprint, use:
+
+1. New → Web Service → Connect GitHub repo
+2. Build command: `pip install -r requirements.txt`
+3. Start command: `gunicorn app:app --workers 1 --timeout 120 --bind 0.0.0.0:$PORT`
+4. Add `DATABASE_URL`, `SECRET_KEY`, and the OTP/API keys in the Render dashboard. If you want to postpone some keys, leave them blank and fill them in later.
 
 ### Deploy to Heroku
 
@@ -249,9 +306,8 @@ heroku config:set NEWS_API_KEY=your-news-key
 git push heroku main
 ```
 
-> ⚠️ **SQLite on cloud platforms**: SQLite files reset on Heroku/Railway 
-> every time the app restarts (ephemeral filesystem). For production with real users, 
-> you should use **PostgreSQL**. Railway and Render both offer free PostgreSQL.
+> ⚠️ **SQLite on cloud platforms**: SQLite files reset on Heroku/Railway/Render 
+> every time the app restarts (ephemeral filesystem). For trial runs you can use the database provisioned by Render, but for any real production use you should keep PostgreSQL.
 
 ---
 
@@ -261,6 +317,15 @@ git push heroku main
 |----------|----------|-------------|
 | `SECRET_KEY` | ✅ Yes | Signs Flask session cookies. Use a long random string. App crashes without it. |
 | `NEWS_API_KEY` | ⚠️ Recommended | Your newsdata.io API key. News page shows empty without it. |
+| `RESEND_API_KEY` | ⚠️ Recommended | Resend API key for email OTP delivery on signup and password reset. If not set, email OTPs are printed to terminal. |
+| `EMAIL_FROM_ADDRESS` | ⚠️ Optional | Sender address for OTP emails. Use `onboarding@resend.dev` for initial Render testing. |
+| `EMAIL_PROVIDER` | ⚠️ Optional | `resend` (default) or `aws_ses`. Chooses which service sends OTP emails. |
+| `AWS_REGION` | ⚠️ Optional | AWS region for SES, such as `us-east-1`. Used when `EMAIL_PROVIDER=aws_ses`. |
+| `AWS_SES_FROM_EMAIL` | ⚠️ Optional | Verified SES sender address used for OTP emails. |
+| `SMS_OTP_PROVIDER` | ⚠️ Recommended | `fast2sms` or `telesign`. Controls SMS OTP delivery provider. |
+| `FAST2SMS_API_KEY` | ⚠️ Recommended | Fast2SMS API key for SMS OTP delivery. Used if provider is `fast2sms`. |
+| `TELESIGN_CUSTOMER_ID` | ⚠️ Recommended | Telesign customer ID for SMS OTP delivery. Used if provider is `telesign`. |
+| `TELESIGN_API_KEY` | ⚠️ Recommended | Telesign API key for SMS OTP delivery. Used if provider is `telesign`. |
 
 ---
 
@@ -290,7 +355,7 @@ User fills Signup form
     ↓
 Flask validates → hashes password (pbkdf2:sha256) → saves to DB
     ↓
-Generates 6-digit OTP → logs it to console (TODO: send via email/SMS)
+Generates 6-digit OTP → sends it through Resend or AWS SES
     ↓
 User goes to /verify → enters OTP → account activated
     ↓

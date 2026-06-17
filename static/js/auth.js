@@ -373,6 +373,18 @@ document.addEventListener("DOMContentLoaded", function () {
   const timerText   = document.getElementById("timerText");
   const resendBtn   = document.getElementById("resendOtpBtn");
 
+  const msg91WidgetData = document.getElementById("msg91WidgetData");
+  const msg91Enabled    = msg91WidgetData?.dataset.msg91Enabled === "true";
+  const msg91Channel    = msg91WidgetData?.dataset.msg91Channel || null;
+  const msg91ReqId      = msg91WidgetData?.dataset.msg91ReqId || null;
+  const resendStatus    = document.getElementById("resendStatus");
+
+  function setResendStatus(message, isError) {
+    if (!resendStatus) return;
+    resendStatus.textContent = message;
+    resendStatus.style.color = isError ? "#DC2626" : "#16A34A";
+  }
+
   if (timerCount && resendBtn) {
     let seconds = 60;
 
@@ -388,6 +400,37 @@ document.addEventListener("DOMContentLoaded", function () {
         resendBtn.style.opacity = "1";
       }
     }, 1000);   // runs every 1 second
+
+    resendBtn.addEventListener("click", function (e) {
+      if (resendBtn.disabled) return;
+      e.preventDefault();
+
+      if (msg91Enabled && typeof window.retryOtp === "function") {
+        resendBtn.disabled = true;
+        resendBtn.style.opacity = "0.4";
+        setResendStatus("Resending OTP…", false);
+
+        const channel = msg91Channel === "null" ? null : msg91Channel;
+        window.retryOtp(
+          channel,
+          function (data) {
+            console.log("resend data:", data);
+            setResendStatus("OTP resent successfully. Please check your phone.", false);
+          },
+          function (error) {
+            console.error(error);
+            setResendStatus("Unable to resend OTP. Please try again or refresh the page.", true);
+            resendBtn.disabled = false;
+            resendBtn.style.opacity = "1";
+          },
+          msg91ReqId || undefined
+        );
+      } else if (resendBtn.dataset.fallbackHref) {
+        window.location.href = resendBtn.dataset.fallbackHref;
+      } else {
+        setResendStatus("Unable to resend OTP. Please refresh the page.", true);
+      }
+    });
   }
 
 }); // end DOMContentLoaded

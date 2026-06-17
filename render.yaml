@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: coin-scanner
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn application:app --workers 1 --timeout 120 --bind 0.0.0.0:$PORT
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: FLASK_ENV
+        value: production
+      - key: SESSION_COOKIE_SECURE
+        value: true
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: coin-scanner-db
+          property: connectionString
+      - key: NEWS_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM_ADDRESS
+        sync: false
+      - key: COINDCX_API_KEY
+        sync: false
+      - key: COINDCX_SECRET
+        sync: false
+      - key: FAST2SMS_API_KEY
+        sync: false
+      - key: TELESIGN_CUSTOMER_ID
+        sync: false
+      - key: TELESIGN_API_KEY
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      - key: AWS_SES_FROM_EMAIL
+        sync: false
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: SMS_OTP_PROVIDER
+        value: fast2sms
+
+databases:
+  - name: coin-scanner-db
+    plan: free

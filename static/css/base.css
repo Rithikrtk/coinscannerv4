@@ -50,7 +50,7 @@
 html, body {
     height: auto;
     font-family: 'Inter', sans-serif;
-    background-color: var(--bg-color);
+    background: linear-gradient(180deg, #f4f7fb 0%, #ecf3ff 100%);
     color: var(--text-primary);
 }
 
@@ -59,6 +59,18 @@ body {
     flex-direction: column;
     overflow-x: hidden;
     overflow-y: auto;
+    position: relative;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(circle at top left, rgba(24, 119, 242, 0.09), transparent 18%),
+        radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.06), transparent 20%);
+    pointer-events: none;
+    z-index: -1;
 }
 
 /* =====================================================

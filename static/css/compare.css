@@ -428,6 +428,14 @@
   color: #0f172a;
   margin-bottom: 6px;
   font-family: 'Syne', sans-serif;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.cmp-card-name:hover {
+  color: #2563EB;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
 }
 
 .cmp-card-tags { display: flex; gap: 5px; flex-wrap: wrap; }
@@ -1790,6 +1798,14 @@
   font-size: 14px;
   font-weight: 700;
   color: #0f172a;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.clt-name:hover {
+  color: #2563EB;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
 }
 
 .clt-founded {
@@ -2022,6 +2038,10 @@ body.dark .cmp-sel-btn.selected { background: #1E3A5F; color: #3B82F6; border-co
 body.dark .cmp-card            { background: #1E293B; border-color: #334155; }
 body.dark .cmp-card:hover      { background: #273549; }
 body.dark .cmp-card-name       { color: #F1F5F9; }
+body.dark .cmp-card-name:hover { color: #60A5FA; }
+
+body.dark .clt-name            { color: #F1F5F9; }
+body.dark .clt-name:hover      { color: #60A5FA; }
 
 /* Compare bar */
 body.dark .cmp-bar             { background: #1E293B; border-color: #334155;

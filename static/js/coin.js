@@ -152,7 +152,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const interval = days <= 1 ? "1h" : "1d";
       const limit    = days <= 1 ? 24 : Math.min(days, 30);
       const res = await fetch(
-        `https://public.coindcx.com/market_data/candles/?pair=B-${symbol}_INR&interval=${interval}&limit=${limit}`
+        `https://public.coindcx.com/market_data/candles/?pair=I-${symbol}_INR&interval=${interval}&limit=${limit}`
       );
       if (!res.ok) throw new Error("CoinDCX candles error " + res.status);
       const candles = await res.json();
@@ -266,7 +266,7 @@ document.addEventListener("DOMContentLoaded", function () {
     async function fetchSparkline(symbol) {
       try {
         const res = await fetch(
-          `https://public.coindcx.com/market_data/candles/?pair=B-${symbol}_INR&interval=1d&limit=7`
+          `https://public.coindcx.com/market_data/candles/?pair=I-${symbol}_INR&interval=1d&limit=7`
         );
         if (!res.ok) return [];
         const candles = await res.json();

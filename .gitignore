@@ -13,6 +13,11 @@ __pycache__/
 *.db
 *.sqlite3
 
+# Python artifacts
+*.pyc
+__pycache__/
+instance/
+
 # macOS
 .DS_Store
 .AppleDouble
@@ -30,3 +35,29 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Test / coverage
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+.coverage
+.coverage.*
+
+# AWS / deployment
+.elasticbeanstalk/
+*.deploy*
+
+# Node modules
+node_modules/
+
+# Backup files
+*~
+*.tmp
+*.bak

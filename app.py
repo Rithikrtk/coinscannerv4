@@ -44,6 +44,7 @@ from flask import (
     Flask, render_template, session, url_for,
     request, redirect, jsonify, abort
 )
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
 from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
@@ -57,10 +58,19 @@ from database import init_db, get_db_connection, purge_old_logs
 # Never hardcode secrets in source code!
 load_dotenv()
 
+
+def _env_flag(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
 # ══════════════════════════════════════════════════════════
 # APP SETUP
 # ══════════════════════════════════════════════════════════
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+application = app
 
 # SECRET_KEY is required — used to sign session cookies.
 # If missing, raise an error immediately rather than running insecurely.
@@ -80,7 +90,8 @@ app.secret_key = _secret
 # Secure:   Cookie only sent over HTTPS — enabled in production only
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE']   = os.environ.get('FLASK_ENV') == 'production'
+app.config['SESSION_COOKIE_SECURE']   = _env_flag('SESSION_COOKIE_SECURE', os.environ.get('FLASK_ENV') == 'production')
+app.config['PREFERRED_URL_SCHEME']    = 'https' if app.config['SESSION_COOKIE_SECURE'] else 'http'
 
 # CoinDCX API credentials — for authenticated endpoints (candles, market data)
 # Generate at: https://coindcx.com/settings/api
@@ -90,18 +101,29 @@ COINDCX_SECRET  = os.environ.get("COINDCX_SECRET",  "")
 # News API key (newsdata.io) — optional, news page shows nothing without it
 NEWS_API_KEY   = os.environ.get("NEWS_API_KEY")
 
-# Resend API key — for OTP email delivery (signup + forgot password)
-# Sign up free at: https://resend.com (3,000 emails/month free)
-# If not set, OTPs are console-logged only (development mode)
-RESEND_API_KEY   = os.environ.get("RESEND_API_KEY")
-
-# Fast2SMS API key — for OTP SMS delivery to Indian phone numbers
-# Sign up free at: https://www.fast2sms.com (50 free credits on signup)
-# If not set, SMS OTPs are printed to terminal only (development mode)
-FAST2SMS_API_KEY = os.environ.get("FAST2SMS_API_KEY")
+# Email OTP provider — supports Resend (default), AWS SES, or console fallback
+EMAIL_PROVIDER = os.environ.get("EMAIL_PROVIDER", "resend").strip().lower()
 
 
-# ══════════════════════════════════════════════════════════
+
+# Email sender address — override this in Render if you need a test sender
+EMAIL_FROM_ADDRESS = os.environ.get("EMAIL_FROM_ADDRESS", "onboarding@resend.dev")
+
+# AWS SES settings — used when EMAIL_PROVIDER=aws_ses
+# AWS credentials are loaded by boto3 from the standard AWS credential chain
+AWS_REGION = os.environ.get("AWS_REGION") or os.environ.get("AWS_SES_REGION") or "us-east-1"
+AWS_SES_FROM_EMAIL = os.environ.get("AWS_SES_FROM_EMAIL", "noreply@coinscanner.tech")
+
+
+
+# Telesign credentials — for SMS OTP delivery using Telesign
+MSG91_API_KEY    = os.environ.get("MSG91_API_KEY")
+MSG91_SENDER_ID  = os.environ.get("MSG91_SENDER_ID", "MSGIND")
+MSG91_WIDGET_ID  = os.environ.get("MSG91_WIDGET_ID")
+MSG91_TOKEN_AUTH = os.environ.get("MSG91_TOKEN_AUTH")
+
+
+# ══════════════════════════════════════════════════════════════════
 # SECURITY HEADERS
 # Added to every HTTP response automatically.
 # These tell the browser to be extra careful about security.
@@ -119,6 +141,9 @@ def set_security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"]        = "SAMEORIGIN"
     response.headers["Referrer-Policy"]        = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"]     = "camera=(), microphone=(), geolocation=()"
+    if request.is_secure or app.config['SESSION_COOKIE_SECURE']:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 
@@ -189,6 +214,7 @@ COINGECKO_TO_DCX = {
 import hmac as _hmac
 import hashlib as _hashlib
 import json as _json
+import base64
 
 def _dcx_auth_headers(body: dict) -> dict:
     """
@@ -269,112 +295,101 @@ def get_dcx_prices():
 
 def get_coin_metadata():
     """
-    Build coin metadata entirely from CoinDCX ticker — only public endpoint
-    that works without IP restrictions.
+    Build coin metadata from CoinDCX public APIs.
 
-    GET /exchange/ticker returns all pairs including price, 24h change,
-    high, low, volume. We filter to INR pairs only.
+    Sources:
+      1. GET /exchange/v1/markets_details — real coin names, pair format for candles
+      2. GET /exchange/ticker            — live price, 24h change, high, low, volume
 
-    Coin names are derived from the symbol (e.g. "BTC" → "Bitcoin") using
-    a built-in symbol→name map. Unknown coins just use their symbol as name.
-
+    INR pair format for candles API: I-BTC_INR (not B-BTC_INR)
     Cached for 5 minutes.
     """
     with _cache_lock:
         if time.time() - META_CACHE["timestamp"] < 300:
             return META_CACHE["data"]
 
-    # ── Fetch ticker ──────────────────────────────────────
+    # ── Step 1: Fetch markets_details for real coin names ──
+    name_map  = {}   # symbol → full name  e.g. "BTC" → "Bitcoin"
+    pair_map  = {}   # symbol → candle pair e.g. "BTC" → "I-BTC_INR"
     try:
-        res = requests.get(
+        r = requests.get(
+            "https://api.coindcx.com/exchange/v1/markets_details",
+            timeout=15
+        )
+        r.raise_for_status()
+        for m in r.json():
+            # Only INR base currency markets (pair starts with "I-")
+            pair = m.get("pair", "")
+            if not pair.startswith("I-") or not pair.endswith("_INR"):
+                continue
+            symbol = m.get("target_currency_short_name", "").upper()
+            name   = m.get("target_currency_name", symbol)
+            if symbol and m.get("status") == "active":
+                name_map[symbol] = name
+                pair_map[symbol] = pair   # e.g. "I-BTC_INR"
+        app.logger.info("markets_details loaded — %d INR coins", len(name_map))
+    except Exception as e:
+        app.logger.warning("markets_details error: %s — falling back to name map", e)
+
+    # ── Step 2: Fetch ticker for live prices ──────────────
+    try:
+        r2 = requests.get(
             "https://api.coindcx.com/exchange/ticker",
             timeout=10
         )
-        res.raise_for_status()
-        tickers = res.json()
+        r2.raise_for_status()
+        tickers = r2.json()
     except Exception as e:
         app.logger.warning("CoinDCX ticker error: %s", e)
         return META_CACHE["data"]
 
-    # ── Symbol → Name map (top 200 coins) ─────────────────
-    NAME_MAP = {
+    # ── Fallback name map for coins not in markets_details ─
+    FALLBACK_NAMES = {
         "BTC":"Bitcoin","ETH":"Ethereum","USDT":"Tether","BNB":"BNB",
         "SOL":"Solana","XRP":"XRP","USDC":"USD Coin","ADA":"Cardano",
         "AVAX":"Avalanche","DOGE":"Dogecoin","TRX":"TRON","DOT":"Polkadot",
         "LINK":"Chainlink","MATIC":"Polygon","LTC":"Litecoin","SHIB":"Shiba Inu",
         "UNI":"Uniswap","ATOM":"Cosmos","XLM":"Stellar","ETC":"Ethereum Classic",
-        "BCH":"Bitcoin Cash","APT":"Aptos","FIL":"Filecoin","HBAR":"Hedera",
-        "ARB":"Arbitrum","OP":"Optimism","NEAR":"NEAR Protocol","INJ":"Injective",
-        "IMX":"Immutable","MKR":"Maker","AAVE":"Aave","SUI":"Sui","SEI":"Sei",
-        "SAND":"The Sandbox","MANA":"Decentraland","AXS":"Axie Infinity",
-        "THETA":"Theta Network","VET":"VeChain","GRT":"The Graph",
-        "ALGO":"Algorand","EGLD":"MultiversX","XTZ":"Tezos","FLOW":"Flow",
-        "EOS":"EOS","ZEC":"Zcash","DASH":"Dash","XMR":"Monero",
-        "NEO":"NEO","IOTA":"IOTA","ONT":"Ontology","ZIL":"Zilliqa",
-        "BAT":"Basic Attention Token","ENJ":"Enjin Coin","CHZ":"Chiliz",
-        "HOT":"Holo","STORJ":"Storj","CRV":"Curve DAO","COMP":"Compound",
-        "SNX":"Synthetix","YFI":"yearn.finance","SUSHI":"SushiSwap",
-        "1INCH":"1inch","RUNE":"THORChain","CAKE":"PancakeSwap",
-        "LUNA":"Terra Classic","FTM":"Fantom","ONE":"Harmony",
-        "ROSE":"Oasis Network","ICX":"ICON","ZRX":"0x Protocol",
-        "BAND":"Band Protocol","KNC":"Kyber Network","BAL":"Balancer",
-        "REN":"Ren","LRC":"Loopring","PERP":"Perpetual Protocol",
-        "DYDX":"dYdX","WOO":"WOO Network","GMT":"STEPN","APE":"ApeCoin",
-        "GAL":"Galxe","STX":"Stacks","MINA":"Mina Protocol",
-        "GALA":"Gala","ILV":"Illuvium","YGG":"Yield Guild Games",
-        "JASMY":"JasmyCoin","CELR":"Celer Network","ANKR":"Ankr",
-        "SKL":"SKALE","NKN":"NKN","OGN":"Origin Protocol","FET":"Fetch.ai",
-        "OCEAN":"Ocean Protocol","RLC":"iExec RLC","CTSI":"Cartesi",
-        "MASK":"Mask Network","POND":"Marlin","BICO":"Biconomy",
-        "GLMR":"Moonbeam","MOVR":"Moonriver","KSM":"Kusama",
-        "CFX":"Conflux","KAVA":"Kava","CELO":"Celo","SPELL":"Spell Token",
-        "CVX":"Convex Finance","FXS":"Frax Share","LQTY":"Liquity",
-        "BLUR":"Blur","MAGIC":"MAGIC","HFT":"Hashflow","HOOK":"Hooked Protocol",
-        "AGIX":"SingularityNET","RNDR":"Render","WLD":"Worldcoin",
-        "TIA":"Celestia","PYTH":"Pyth Network","JTO":"Jito",
-        "MANTA":"Manta Network","ALT":"AltLayer","DYM":"Dymension",
-        "PIXEL":"Pixels","PORTAL":"Portal","STRK":"Starknet","BEAM":"Beam",
-        "RON":"Ronin","ETHFI":"Ether.fi","ENA":"Ethena","W":"Wormhole",
-        "ONDO":"Ondo","TON":"Toncoin","NOT":"Notcoin","BRETT":"Brett",
-        "POPCAT":"Popcat","MEW":"cat in a dogs world","BOME":"Book of Meme",
-        "WIF":"dogwifhat","BONK":"Bonk","PEPE":"Pepe","FLOKI":"Floki",
-        "DOG":"Dog","SATS":"1000SATS","ORDI":"ORDI","RATS":"Rats",
-        "NEIRO":"Neiro","HMSTR":"Hamster Kombat","CATI":"Catizen",
-        "DOGS":"Dogs","MAJOR":"Major","ICE":"ICE","PNUT":"Peanut the Squirrel",
-        "ACT":"Act I : The AI Prophecy","GOAT":"Goat","MOODENG":"Moodeng",
-        "CHILLGUY":"Chillguy","VIRTUAL":"Virtuals Protocol","AI16Z":"ai16z",
-        "ZEREBRO":"Zerebro","GRIFFAIN":"Griffain","FARTCOIN":"Fartcoin",
+        "BCH":"Bitcoin Cash","APT":"Aptos","FIL":"Filecoin","NEAR":"NEAR Protocol",
+        "ARB":"Arbitrum","OP":"Optimism","INJ":"Injective","MKR":"Maker",
+        "AAVE":"Aave","SUI":"Sui","PEPE":"Pepe","WIF":"dogwifhat",
+        "BONK":"Bonk","TON":"Toncoin","ZEC":"Zcash","XMR":"Monero",
+        "ALGO":"Algorand","VET":"VeChain","FTM":"Fantom","SAND":"The Sandbox",
+        "MANA":"Decentraland","CRV":"Curve DAO","GRT":"The Graph",
+        "SNX":"Synthetix","RNDR":"Render","FET":"Fetch.ai","RUNE":"THORChain",
+        "KSM":"Kusama","CHZ":"Chiliz","BAT":"Basic Attention Token",
+        "ZEREBRO":"Zerebro","FLOKI":"Floki","GALA":"Gala","BLUR":"Blur",
     }
 
-    # ── Build metadata from INR pairs only ────────────────
-    seen    = set()
+    # ── Step 3: Build metadata from INR ticker pairs ───────
+    seen     = set()
     meta_map = {}
 
-    # Sort by volume desc so highest-volume coin wins duplicates
     inr_tickers = [
         t for t in tickers
-        if str(t.get("market","")).endswith("INR")
+        if str(t.get("market", "")).endswith("INR")
     ]
-    inr_tickers.sort(key=lambda t: float(t.get("volume",0) or 0), reverse=True)
+    inr_tickers.sort(key=lambda t: float(t.get("volume", 0) or 0), reverse=True)
 
     for t in inr_tickers:
-        market = t.get("market","")                        # e.g. "BTCINR"
+        market = t.get("market", "")              # e.g. "BTCINR"
         symbol = market[:-3].upper() if market.endswith("INR") else ""
         if not symbol or symbol in seen:
             continue
         seen.add(symbol)
 
-        name   = NAME_MAP.get(symbol, symbol)
-        price  = float(t.get("last_price", 0) or 0)
-        change = float(t.get("change_24_hour", 0) or 0)
-        high   = float(t.get("high",  0) or 0)
-        low    = float(t.get("low",   0) or 0)
-        volume = float(t.get("volume",0) or 0)
+        # Use real name from markets_details, fallback to hardcoded map, then symbol
+        name   = name_map.get(symbol) or FALLBACK_NAMES.get(symbol, symbol)
 
-        # Use CoinGecko static CDN for logos — best coverage, no auth needed
-        # Falls back to a letter avatar via onerror in templates
-        image = f"https://assets.coingecko.com/coins/images/1/small/{symbol.lower()}.png"
-        # Better: use a known symbol→CoinGecko image map for top coins
+        # Candle pair: from markets_details if available, else construct I-SYM_INR
+        candle_pair = pair_map.get(symbol, f"I-{symbol}_INR")
+
+        price  = float(t.get("last_price",     0) or 0)
+        change = float(t.get("change_24_hour", 0) or 0)
+        high   = float(t.get("high",           0) or 0)
+        low    = float(t.get("low",            0) or 0)
+        volume = float(t.get("volume",         0) or 0)
+
         LOGO_MAP = {
             "BTC":"https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
             "ETH":"https://assets.coingecko.com/coins/images/279/small/ethereum.png",
@@ -418,20 +433,17 @@ def get_coin_metadata():
             "SAND":"https://assets.coingecko.com/coins/images/12129/small/sandbox_logo.jpg",
             "MANA":"https://assets.coingecko.com/coins/images/878/small/decentraland-mana.png",
             "CRV":"https://assets.coingecko.com/coins/images/12124/small/Curve.png",
-            "COMP":"https://assets.coingecko.com/coins/images/10775/small/COMP.png",
             "GRT":"https://assets.coingecko.com/coins/images/13397/small/Graph_Token.png",
             "SNX":"https://assets.coingecko.com/coins/images/3406/small/SNX.png",
             "RNDR":"https://assets.coingecko.com/coins/images/11636/small/rndr.png",
             "FET":"https://assets.coingecko.com/coins/images/5681/small/Fetch.jpg",
             "RUNE":"https://assets.coingecko.com/coins/images/6595/small/Rune200x200.png",
             "KSM":"https://assets.coingecko.com/coins/images/9568/small/m4zRhP5e_400x400.jpg",
-            "FLOW":"https://assets.coingecko.com/coins/images/13446/small/5f6294c0c7a8cda55cb1c936_Flow_Wordmark.png",
             "CHZ":"https://assets.coingecko.com/coins/images/8834/small/Chiliz.png",
             "BAT":"https://assets.coingecko.com/coins/images/677/small/basic-attention-token.png",
-            "ZRX":"https://assets.coingecko.com/coins/images/863/small/0x.png",
-            "ENJ":"https://assets.coingecko.com/coins/images/1102/small/enjin-coin-logo.png",
-            "1INCH":"https://assets.coingecko.com/coins/images/13469/small/1inch-token.png",
-            "CAKE":"https://assets.coingecko.com/coins/images/12632/small/pancakeswap-cake-logo_%281%29.png",
+            "FLOKI":"https://assets.coingecko.com/coins/images/16746/small/FLOKI.png",
+            "GALA":"https://assets.coingecko.com/coins/images/12493/small/GALA-COINGECKO.png",
+            "BLUR":"https://assets.coingecko.com/coins/images/28453/small/blur.png",
         }
         image = LOGO_MAP.get(symbol, f"https://assets.coincap.io/assets/icons/{symbol.lower()}@2x.png")
 
@@ -451,13 +463,13 @@ def get_coin_metadata():
             "cg_volume":          volume,
             "cg_high":            high,
             "cg_low":             low,
-            "pair":               market,
+            "pair":               candle_pair,   # e.g. "I-BTC_INR" — correct format for candles
         }
 
     with _cache_lock:
         META_CACHE["data"]      = meta_map
         META_CACHE["timestamp"] = time.time()
-    app.logger.info("CoinDCX ticker metadata built — %d INR coins", len(meta_map))
+    app.logger.info("CoinDCX metadata built — %d INR coins", len(meta_map))
     return meta_map
 
 
@@ -965,7 +977,7 @@ def debug_dcx():
     try:
         r3 = requests.get(
             "https://public.coindcx.com/market_data/candles/",
-            params={"pair": "B-BTC_INR", "interval": "1d", "limit": 3},
+            params={"pair": "I-BTC_INR", "interval": "1d", "limit": 3},
             timeout=10,
         )
         results["candles"] = {
@@ -1084,7 +1096,7 @@ def api_coin_chart(symbol):
         res = requests.get(
             "https://public.coindcx.com/market_data/candles/",
             params={
-                "pair":     f"B-{symbol}_INR",
+                "pair":     f"I-{symbol}_INR",
                 "interval": "1d",
                 "limit":    days,
             },
@@ -1162,7 +1174,7 @@ def coin_page(coin_id):
     try:
         candle_url = "https://public.coindcx.com/market_data/candles/"
         candle_res = requests.get(candle_url, params={
-            "pair":     f"B-{symbol}_INR",
+            "pair":     f"I-{symbol}_INR",
             "interval": "1d",
             "limit":    7,
         }, timeout=10)
@@ -1287,9 +1299,10 @@ def disclaimer():
 
 def send_otp_email(to_email, otp, purpose="signup"):
     """
-    Send an OTP to the user's email via Resend.
+    Send an OTP to the user's email via the configured email provider.
 
-    Falls back to console logging if RESEND_API_KEY is not set —
+    Supports Resend and AWS SES. Falls back to console logging if
+    the selected provider is not configured —
     so local development works without any email configuration.
 
     Args:
@@ -1335,6 +1348,39 @@ def send_otp_email(to_email, otp, purpose="signup"):
     </div>
     """
 
+    text_body = (
+        f"{heading}\n\n"
+        f"{body_txt}\n\n"
+        f"Your verification code: {otp}\n\n"
+        f"{note_txt}\n"
+        f"CoinScanner · Agreed Financial Tech Pvt. Ltd.\n"
+        "This is an automated message. Do not reply.\n"
+    )
+
+    if EMAIL_PROVIDER == "aws_ses":
+        try:
+            import boto3
+            from botocore.exceptions import BotoCoreError, ClientError
+
+            ses_client = boto3.client("ses", region_name=AWS_REGION)
+            ses_client.send_email(
+                Source=AWS_SES_FROM_EMAIL,
+                Destination={"ToAddresses": [to_email]},
+                Message={
+                    "Subject": {"Data": subject, "Charset": "UTF-8"},
+                    "Body": {
+                        "Html": {"Data": html_body, "Charset": "UTF-8"},
+                        "Text": {"Data": text_body, "Charset": "UTF-8"},
+                    },
+                },
+            )
+            app.logger.info("OTP email sent via AWS SES to %s (purpose=%s)", to_email, purpose)
+            return
+        except (ImportError, BotoCoreError, ClientError) as e:
+            app.logger.error("AWS SES email failed for %s: %s", to_email, e)
+            print(f"\n==================================================\n[DEV OTP] {purpose.upper()} code for {to_email}: {otp}\n==================================================\n", flush=True)
+            return
+
     if not RESEND_API_KEY:
         # Development fallback — log to console
         print(f"\n==================================================\n[DEV OTP] {purpose.upper()} code for {to_email}: {otp}\n==================================================\n", flush=True)
@@ -1344,7 +1390,7 @@ def send_otp_email(to_email, otp, purpose="signup"):
         import resend
         resend.api_key = RESEND_API_KEY
         resend.Emails.send({
-            "from":    "CoinScanner <noreply@coinscanner.tech>",
+            "from":    f"CoinScanner <{EMAIL_FROM_ADDRESS}>",
             "to":      [to_email],
             "subject": subject,
             "html":    html_body,
@@ -1357,31 +1403,118 @@ def send_otp_email(to_email, otp, purpose="signup"):
 
 def send_otp_sms(phone, otp, purpose="signup"):
     """
-    Send an OTP to the user's phone via Fast2SMS.
+    Send an OTP to the user's phone via Fast2SMS or Telesign.
 
-    Falls back to terminal print if FAST2SMS_API_KEY is not set —
+    Falls back to terminal print if SMS provider configuration is missing —
     so local development works without SMS configuration.
 
     Args:
-        phone   (str): Indian phone number (10 digits, no +91)
+        phone   (str): Phone number, with or without country code
         otp     (str): The 6-digit OTP code
         purpose (str): "signup" or "reset"
     """
-    # Normalise phone — strip +91 or leading 0 if present
-    phone = phone.strip().lstrip("+")
-    if phone.startswith("91") and len(phone) == 12:
-        phone = phone[2:]
+    # Normalise phone to digits only, then enforce Indian number format
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    if digits.startswith("91") and len(digits) == 12:
+        digits = digits[2:]
+    elif digits.startswith("0") and len(digits) == 11:
+        digits = digits[1:]
+
+    if len(digits) != 10:
+        app.logger.warning("SMS OTP phone number format invalid: %s", phone)
+        return
+
+    phone_number = f"+91{digits}"
 
     if purpose == "signup":
         message = f"Your CoinScanner verification code is {otp}. Valid for 5 minutes. Do not share."
     else:
         message = f"Your CoinScanner password reset code is {otp}. Valid for 5 minutes. Do not share."
 
+    provider = SMS_OTP_PROVIDER or "fast2sms"
+
+    if provider == "telesign":
+        if not TELESIGN_CUSTOMER_ID or not TELESIGN_API_KEY:
+            print(
+                f"\n==================================================\n"
+                f"[DEV SMS OTP] {purpose.upper()} code for {phone_number}: {otp}\n"
+                f"==================================================\n",
+                flush=True
+            )
+            return
+
+        try:
+            auth_value = base64.b64encode(
+                f"{TELESIGN_CUSTOMER_ID}:{TELESIGN_API_KEY}".encode("utf-8")
+            ).decode("ascii")
+            res = requests.post(
+                "https://rest-api.telesign.com/v2/messaging",
+                headers={
+                    "Authorization": f"Basic {auth_value}",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                data={
+                    "phone_number": phone_number,
+                    "message": message,
+                    "message_type": "OTP",
+                },
+                timeout=10
+            )
+            if res.status_code in (200, 201):
+                app.logger.info("SMS OTP sent via Telesign to %s (purpose=%s)", phone_number, purpose)
+            else:
+                app.logger.warning(
+                    "Telesign SMS failed for %s: %s %s",
+                    phone_number,
+                    res.status_code,
+                    res.text,
+                )
+        except Exception as e:
+            app.logger.error("Telesign SMS error for %s: %s", phone_number, e)
+        return
+
+    if provider == "msg91":
+        if not MSG91_API_KEY:
+            print(
+                f"\n==================================================\n"
+                f"[DEV SMS OTP] {purpose.upper()} code for {phone_number}: {otp}\n"
+                f"==================================================\n",
+                flush=True
+            )
+            return
+
+        try:
+            res = requests.get(
+                "https://control.msg91.com/api/sendhttp.php",
+                params={
+                    "authkey": MSG91_API_KEY,
+                    "mobiles": digits,
+                    "message": message,
+                    "sender": MSG91_SENDER_ID,
+                    "route": "otp",
+                    "country": "91",
+                },
+                timeout=10
+            )
+            body = res.text.strip().lower()
+            if res.status_code == 200 and "success" in body:
+                app.logger.info("SMS OTP sent via MSG91 to %s (purpose=%s)", phone_number, purpose)
+            else:
+                app.logger.warning(
+                    "MSG91 SMS failed for %s: %s %s",
+                    phone_number,
+                    res.status_code,
+                    res.text,
+                )
+        except Exception as e:
+            app.logger.error("MSG91 SMS error for %s: %s", phone_number, e)
+        return
+
     if not FAST2SMS_API_KEY:
         # Development fallback — print to terminal
         print(
             f"\n==================================================\n"
-            f"[DEV SMS OTP] {purpose.upper()} code for {phone}: {otp}\n"
+            f"[DEV SMS OTP] {purpose.upper()} code for {phone_number}: {otp}\n"
             f"==================================================\n",
             flush=True
         )
@@ -1395,17 +1528,17 @@ def send_otp_sms(phone, otp, purpose="signup"):
                 "route":    "otp",
                 "variables_values": otp,
                 "flash":    0,
-                "numbers":  phone,
+                "numbers":  digits,
             },
             timeout=10
         )
         data = res.json()
         if data.get("return"):
-            app.logger.info("SMS OTP sent to %s (purpose=%s)", phone, purpose)
+            app.logger.info("SMS OTP sent to %s (purpose=%s)", phone_number, purpose)
         else:
-            app.logger.warning("Fast2SMS failed for %s: %s", phone, data)
+            app.logger.warning("Fast2SMS failed for %s: %s", phone_number, data)
     except Exception as e:
-        app.logger.error("Fast2SMS error for %s: %s", phone, e)
+        app.logger.error("Fast2SMS error for %s: %s", phone_number, e)
 
 
 def log_login_attempt(ip, identifier, success, reason):
@@ -1483,10 +1616,12 @@ def login():
             user = cursor.fetchone()
 
             if not user:
-                # User doesn't exist — generic message prevents enumeration
+                # User doesn't exist — redirect them to signup so they can create one.
                 conn.close()
                 log_login_attempt(ip, identifier, False, "not_found")
-                error = "Invalid email/phone or password."
+                if "@" in identifier:
+                    return redirect(url_for("signup", email=identifier))
+                return redirect(url_for("signup", phone=identifier))
 
             elif (user["locked_until"] or 0) > int(time.time()):
                 # Account is temporarily locked
@@ -1637,9 +1772,9 @@ def signup():
                         return redirect(url_for("verify_email", email=email))
 
     return render_template("auth/signup.html", error=error,
-        form_name=request.form.get("name", ""),
-        form_email=request.form.get("email", ""),
-        form_phone=request.form.get("phone", ""),
+        form_name=request.form.get("name", request.args.get("name", "")),
+        form_email=request.form.get("email", request.args.get("email", "")),
+        form_phone=request.form.get("phone", request.args.get("phone", "")),
     )
 
 
@@ -1654,6 +1789,12 @@ def verify_email():
         return redirect(url_for("signup"))
 
     error = None
+    success = None
+    if request.args.get("resent"):
+        success = "A new OTP has been sent to your email."
+
+    dev_otp = not bool(RESEND_API_KEY)
+
     if request.method == "POST":
         entered = request.form.get("otp", "").strip()
         conn    = get_db_connection()
@@ -1688,8 +1829,45 @@ def verify_email():
         email=email,
         masked=email[:2] + "****" + email[email.index("@"):],
         error=error,
+        success=success,
+        dev_otp=dev_otp,
         step=1
     )
+
+
+@app.route("/resend-email-otp", methods=["POST"])
+def resend_email_otp():
+    """
+    Resend the signup email OTP.
+    """
+    email = request.args.get("email", "").strip() or request.form.get("email", "").strip()
+    if not email:
+        return redirect(url_for("signup"))
+
+    conn   = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+    user = cursor.fetchone()
+
+    if not user:
+        conn.close()
+        return redirect(url_for("signup"))
+
+    if user["email_verified"]:
+        conn.close()
+        return redirect(url_for("verify_phone", email=email))
+
+    otp    = str(random.randint(100000, 999999))
+    expiry = int(time.time()) + 300
+    cursor.execute(
+        "UPDATE users SET email_otp = ?, email_otp_expiry = ? WHERE email = ?",
+        (otp, expiry, email)
+    )
+    conn.commit()
+    conn.close()
+
+    send_otp_email(email, otp, purpose="signup")
+    return redirect(url_for("verify_email", email=email, resent=1))
 
 
 @app.route("/verify-phone", methods=["GET", "POST"])
@@ -1748,20 +1926,45 @@ def verify_phone():
     # Mask phone for display
     conn   = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT phone FROM users WHERE email = ?", (email,))
+    cursor.execute("SELECT phone, email_verified FROM users WHERE email = ?", (email,))
     row    = cursor.fetchone()
+
+    success = None
+    if request.args.get("resend") and row and row["phone"] and row["email_verified"]:
+        otp    = str(random.randint(100000, 999999))
+        expiry = int(time.time()) + 300
+        cursor.execute(
+            "UPDATE users SET phone_otp = ?, phone_otp_expiry = ? WHERE email = ?",
+            (otp, expiry, email)
+        )
+        conn.commit()
+        send_otp_sms(row["phone"], otp, purpose="signup")
+        success = "A new OTP has been sent to your mobile."
+
     conn.close()
+    msg91_enabled = SMS_OTP_PROVIDER == "msg91" and bool(MSG91_WIDGET_ID) and bool(MSG91_TOKEN_AUTH)
+    msg91_identifier = ""
     masked_phone = ""
     if row and row["phone"]:
         p = row["phone"]
         masked_phone = p[:2] + "******" + p[-2:]
+        if msg91_enabled:
+            digits = "".join(ch for ch in p if ch.isdigit())
+            if len(digits) == 10:
+                msg91_identifier = "91" + digits
 
     return render_template(
         "auth/verify_phone.html",
         email=email,
         masked_phone=masked_phone,
         error=error,
-        step=2
+        step=2,
+        msg91_enabled=msg91_enabled,
+        msg91_widget_id=MSG91_WIDGET_ID,
+        msg91_token_auth=MSG91_TOKEN_AUTH,
+        msg91_identifier=msg91_identifier,
+        msg91_channel="null",
+        success=success,
     )
 
 

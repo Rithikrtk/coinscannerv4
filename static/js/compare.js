@@ -476,6 +476,25 @@
     });
   });
 
+  // Attach to exchange names (list and card) — click to open details
+  document.querySelectorAll(".clt-name").forEach(nameEl => {
+    nameEl.style.cursor = "pointer";
+    nameEl.addEventListener("click", e => {
+      e.stopPropagation();
+      const row = nameEl.closest(".cmp-list-row");
+      if (row) openModal(row.dataset.id);
+    });
+  });
+
+  document.querySelectorAll(".cmp-card-name").forEach(nameEl => {
+    nameEl.style.cursor = "pointer";
+    nameEl.addEventListener("click", e => {
+      e.stopPropagation();
+      const card = nameEl.closest(".cmp-card");
+      if (card) openModal(card.dataset.id);
+    });
+  });
+
   function openModal(id) {
     const ex = byId[id];
     if (!ex) return;
@@ -507,7 +526,7 @@
     document.getElementById("mdHQ").textContent        = ex.about.headquarters;
     document.getElementById("mdFounders").textContent  = ex.about.founders;
     document.getElementById("mdRegulated").textContent = ex.about.regulated;
-    document.getElementById("mdWebsite").href          = ex.about.website;
+    document.getElementById("mdWebsite").href          = ex.referral_link || ex.about.website;
 
     // Stats strip
     document.getElementById("mdSpotFee").textContent   = ex.fees.spot;

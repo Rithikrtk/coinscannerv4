@@ -51,6 +51,11 @@
         <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
       </div>
       {% endif %}
+      {% if success %}
+      <div class="auth-alert auth-alert-success">
+        <i class="fa-solid fa-circle-check"></i> {{ success }}
+      </div>
+      {% endif %}
 
       <form method="POST" id="otpForm" novalidate>
         <div class="otp-boxes-wrap">
@@ -65,9 +70,22 @@
 
         <div class="otp-timer-row">
           <span id="timerText">Resend in <strong id="timerCount">60</strong>s</span>
-          <a href="{{ url_for('verify_phone', email=email) }}" id="resendOtpBtn"
-             class="otp-resend-link" style="pointer-events:none;opacity:0.4;">Resend OTP</a>
+          <button type="button" id="resendOtpBtn"
+             class="otp-resend-link"
+             disabled
+             data-fallback-href="{{ url_for('verify_phone', email=email, resend=1) }}"
+             style="opacity:0.4;">
+            Resend OTP
+          </button>
         </div>
+        <div id="resendStatus" class="otp-status" aria-live="polite"></div>
+        <div id="msg91WidgetData"
+             data-msg91-enabled="{{ 'true' if msg91_enabled else 'false' }}"
+             data-msg91-widget-id="{{ msg91_widget_id }}"
+             data-msg91-token-auth="{{ msg91_token_auth }}"
+             data-msg91-identifier="{{ msg91_identifier }}"
+             data-msg91-channel="{{ msg91_channel }}"
+             style="display:none;"></div>
 
         <button type="submit" class="auth-btn" id="otpSubmitBtn" disabled style="opacity:0.5;">
           <i class="fa-solid fa-mobile-screen-button"></i> Verify Mobile & Activate Account

@@ -53,6 +53,7 @@ def get_exchanges():
       currencies  — number of coins supported (string, e.g. "500+")
       earning     — earning options like "Staking, Refer"
       mining      — mining options or "-" if not supported
+      referral_link — affiliate/signup link for the exchange (empty string if not available)
       features    — dict of boolean flags:
                       spot             → spot trading
                       investment       → SIP / passive investing
@@ -92,6 +93,7 @@ def get_exchanges():
             "currencies": "500+",
             "earning":    "Staking, Refer",
             "mining":     "-",
+            "referral_link": "",
             "features": {
                 "spot":            True,
                 "investment":      True,
@@ -125,6 +127,7 @@ def get_exchanges():
             "currencies": "250+",
             "earning":    "Staking, Refer",
             "mining":     "-",
+            "referral_link": "",
             "features": {
                 "spot":            True,
                 "investment":      False,
@@ -158,6 +161,7 @@ def get_exchanges():
             "currencies": "400+",
             "earning":    "Staking, Refer",
             "mining":     "-",
+            "referral_link": "",
             "features": {
                 "spot":            True,
                 "investment":      True,
@@ -191,6 +195,7 @@ def get_exchanges():
             "currencies": "100+",
             "earning":    "Refer",
             "mining":     "-",
+            "referral_link": "",
             "features": {
                 "spot":            True,
                 "investment":      True,
@@ -224,6 +229,7 @@ def get_exchanges():
             "currencies": "650+",
             "earning":    "Staking, Refer",
             "mining":     "-",
+            "referral_link": "https://mudrex.go.link/84KZD",
             "features": {
                 "spot":            False,
                 "investment":      True,
@@ -257,6 +263,7 @@ def get_exchanges():
             "currencies": "50+",
             "earning":    "-",
             "mining":     "-",
+            "referral_link": "",
             "features": {
                 "spot":            True,
                 "investment":      True,
@@ -290,6 +297,7 @@ def get_exchanges():
             "currencies": "100+",
             "earning":    "Fixed Deposits, Refer",
             "mining":     "-",
+            "referral_link": "",
             "features": {
                 "spot":            True,
                 "investment":      False,
@@ -323,6 +331,7 @@ def get_exchanges():
             "currencies": "350+",
             "earning":    "Staking, Refer, Lend",
             "mining":     "-",
+            "referral_link": "",
             "features": {
                 "spot":            True,
                 "investment":      False,
@@ -356,6 +365,7 @@ def get_exchanges():
             "currencies": "500+",
             "earning":    "Refer",
             "mining":     "-",
+            "referral_link": "",
             "features": {
                 "spot":            False,
                 "investment":      False,
@@ -389,6 +399,7 @@ def get_exchanges():
             "currencies": "150+",
             "earning":    "Staking, Refer",
             "mining":     "-",
+            "referral_link": "https://www.delta.exchange/?code=CDXTHS",
             "features": {
                 "spot":            False,
                 "investment":      False,
@@ -424,6 +435,7 @@ def get_exchanges():
             "currencies": "150+",
             "earning":    "Staking, Rewards",
             "mining":     "-",
+            "referral_link": "",
             "features": {
                 "spot":            True,
                 "investment":      True,
@@ -457,6 +469,7 @@ def get_exchanges():
             "currencies": "1,200+",
             "earning":    "Staking, Lend",
             "mining":     "KuMining",
+            "referral_link": "https://www.kucoin.com/r/broker/CXEBKDY1",
             "features": {
                 "spot":            True,
                 "investment":      False,
@@ -490,6 +503,7 @@ def get_exchanges():
             "currencies": "2,400+",
             "earning":    "Staking, Refer",
             "mining":     "Liquidity Mining",
+            "referral_link": "",
             "features": {
                 "spot":            False,
                 "investment":      False,

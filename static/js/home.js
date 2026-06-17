@@ -124,10 +124,54 @@ function renderHeroBand(currency) {
   }
 }
 
+function formatMarketCapLabel(id) {
+  const labels = {
+    bitcoin: "Bitcoin",
+    ethereum: "Ethereum",
+    tether: "Tether",
+    "usd-coin": "USD Coin",
+    binancecoin: "BNB",
+    "binance-usd": "BUSD",
+    "wrapped-bitcoin": "WBTC",
+    "shiba-inu": "Shiba Inu",
+    cardano: "Cardano",
+    solana: "Solana",
+    dogecoin: "Dogecoin",
+    dai: "DAI",
+    polkadot: "Polkadot",
+    tron: "Tron",
+    litecoin: "Litecoin",
+    uniswap: "Uniswap",
+    avalanche: "Avalanche",
+  };
+  return labels[id] || id.replace(/-/g, " ").replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+}
 
-/* ══════════════════════════════════════════════════════
+function buildMarketCapBreakdown(percentages) {
+  if (!percentages || typeof percentages !== "object") return [];
+  const sorted = Object.entries(percentages)
+    .filter(function ([id, value]) { return id && value != null; })
+    .sort(function (a, b) { return b[1] - a[1]; });
+
+  const top = sorted.slice(0, 5).map(function ([id, value]) {
+    return { id: id, label: formatMarketCapLabel(id), value: Number(value) };
+  });
+
+  const topSum = top.reduce(function (sum, item) { return sum + item.value; }, 0);
+  const remainder = sorted.slice(5).reduce(function (sum, item) { return sum + item[1]; }, 0);
+  const otherValue = Math.max(0, remainder || 100 - topSum);
+
+  if (otherValue > 0) {
+    top.push({ id: "other", label: "Other", value: otherValue });
+  }
+
+  return top;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════════════
    MAIN — runs after DOM is ready
-══════════════════════════════════════════════════════ */
+══════════════════════════════════════════════════════════════ */
 document.addEventListener("DOMContentLoaded", function () {
 
   /* ══════════════════════════════════════════════════════
@@ -397,13 +441,108 @@ document.addEventListener("DOMContentLoaded", function () {
      Clicking a .coin-row opens a quick-view popup modal
      with price, 24h stats, and a 7-day chart.
   ══════════════════════════════════════════════════════ */
-  const modal         = document.getElementById("coinModal");
-  const closeBtn      = document.getElementById("closeModal");
-  const modalViewMore = document.getElementById("modalViewMore");
+  const modal            = document.getElementById("coinModal");
+  const closeBtn         = document.getElementById("closeModal");
+  const modalViewMore    = document.getElementById("modalViewMore");
+  const marketCapModal    = document.getElementById("marketCapModal");
+  const marketCapClose    = document.getElementById("closeMarketCapModal");
+  const heroMktCapCard    = document.getElementById("heroMktCapCard");
 
   if (!modal) return;   // modal not in DOM, nothing to do
 
-  let modalChart = null;   // holds Chart.js instance — destroy before re-creating
+  let modalChart     = null;   // holds Chart.js instance — destroy before re-creating
+  let marketCapChart = null;   // holds the market cap pie chart
+
+  function openMarketCapModal() {
+    if (!marketCapModal) return;
+    const canvas   = document.getElementById("marketCapChart");
+    const legend   = document.getElementById("marketCapLegend");
+    const breakdown = window._globalStats?.market_cap_breakdown || [];
+
+    if (marketCapChart) {
+      marketCapChart.destroy();
+      marketCapChart = null;
+    }
+
+    if (!canvas || !legend) return;
+
+    if (!breakdown.length) {
+      legend.innerHTML = '<div class="market-cap-message">Market cap breakdown is not available yet.</div>';
+      marketCapModal.classList.remove("hidden");
+      document.body.style.overflow = "hidden";
+      return;
+    }
+
+    const colors = [
+      "#2563EB", "#10B981", "#F59E0B", "#EC4899", "#8B5CF6", "#0EA5E9", "#F97316"
+    ];
+    const labels = breakdown.map(function (item) { return item.label; });
+    const values = breakdown.map(function (item) { return item.value; });
+    const bg = breakdown.map(function (_, index) { return colors[index % colors.length]; });
+
+    marketCapChart = new Chart(canvas.getContext("2d"), {
+      type: "doughnut",
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          backgroundColor: bg,
+          borderColor: "#ffffff",
+          borderWidth: 2,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "55%",
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                return context.label + ": " + context.formattedValue + "%";
+              },
+            },
+          },
+        },
+      },
+    });
+
+    legend.innerHTML = breakdown.map(function (item, index) {
+      return '<div class="market-cap-legend-item">'
+        + '<span class="market-cap-legend-color" style="background:' + bg[index] + '"></span>'
+        + '<span>' + item.label + ' ' + item.value.toFixed(1) + '%</span>'
+        + '</div>';
+    }).join("");
+
+    marketCapModal.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeMarketCapModal() {
+    if (!marketCapModal) return;
+    marketCapModal.classList.add("hidden");
+    document.body.style.overflow = "";
+    if (marketCapChart) { marketCapChart.destroy(); marketCapChart = null; }
+  }
+
+  if (heroMktCapCard) {
+    heroMktCapCard.addEventListener("click", openMarketCapModal);
+    heroMktCapCard.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openMarketCapModal();
+      }
+    });
+  }
+
+  marketCapClose?.addEventListener("click", closeMarketCapModal);
+  marketCapModal?.addEventListener("click", function (e) {
+    if (e.target === marketCapModal) closeMarketCapModal();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeMarketCapModal();
+  });
 
   /**
    * Open the coin modal, populate all fields, and load the chart.
@@ -511,7 +650,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Try CoinDCX candles first (browser-side, no server blocking)
     try {
       const res = await fetch(
-        `https://public.coindcx.com/market_data/candles/?pair=B-${id}_INR&interval=1d&limit=7`,
+        `https://public.coindcx.com/market_data/candles/?pair=I-${id}_INR&interval=1d&limit=7`,
         { mode: "cors" }
       );
       if (res.ok) {
@@ -630,6 +769,7 @@ async function loadMarketStats() {
       active_coins:                     data.active_cryptocurrencies               || 0,
       markets:                          data.markets                               || 0,
       market_cap_change_percentage_24h: data.market_cap_change_percentage_24h_usd  || 0,
+      market_cap_breakdown:             buildMarketCapBreakdown(data.market_cap_percentage || {}),
     };
 
     // Render immediately with the current currency setting

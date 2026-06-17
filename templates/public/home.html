@@ -46,7 +46,7 @@
         </div>
         <div class="hero-band-div"></div>
         <div class="hero-stats">
-            <div class="hstat">
+            <div class="hstat marketcap-card" id="heroMktCapCard" role="button" tabindex="0" title="Click to view market cap breakdown">
                 <span class="hstat-label">Market Cap</span>
                 <span class="hstat-value" id="heroMktCap">—</span>
                 <span class="hstat-chg" id="heroMktCapChg"></span>
@@ -477,6 +477,25 @@
                 Full Details <i class="fa-solid fa-arrow-right"></i>
             </a>
         </div>
+    </div>
+</div>
+
+<!-- MARKET CAP BREAKDOWN MODAL -->
+<div id="marketCapModal" class="market-cap-modal hidden">
+    <div class="market-cap-box">
+        <div class="market-cap-header">
+            <div>
+                <div class="market-cap-title">Market Cap Breakdown</div>
+                <div class="market-cap-subtitle">Top contributors to global crypto market share</div>
+            </div>
+            <button id="closeMarketCapModal" class="market-cap-close" aria-label="Close market cap breakdown">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="market-cap-chart-wrap">
+            <canvas id="marketCapChart"></canvas>
+        </div>
+        <div class="market-cap-legend" id="marketCapLegend"></div>
     </div>
 </div>
 

@@ -51,6 +51,17 @@
         <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
       </div>
       {% endif %}
+      {% if success %}
+      <div class="auth-alert auth-alert-success">
+        <i class="fa-solid fa-circle-check"></i> {{ success }}
+      </div>
+      {% endif %}
+      {% if dev_otp %}
+      <div class="auth-alert auth-alert-info">
+        <i class="fa-solid fa-circle-info"></i>
+        Email OTP is not configured for delivery. Check your terminal where the app is running for the OTP code.
+      </div>
+      {% endif %}
 
       <form method="POST" id="otpForm" novalidate>
         <div class="otp-boxes-wrap">
@@ -65,13 +76,18 @@
 
         <div class="otp-timer-row">
           <span id="timerText">Resend in <strong id="timerCount">60</strong>s</span>
-          <a href="{{ url_for('signup') }}" id="resendOtpBtn" class="otp-resend-link"
-             style="pointer-events:none;opacity:0.4;">Resend OTP</a>
+          <button type="submit" form="resendEmailForm" id="resendOtpBtn" class="otp-resend-link" disabled style="opacity:0.4;">
+            Resend OTP
+          </button>
         </div>
 
         <button type="submit" class="auth-btn" id="otpSubmitBtn" disabled style="opacity:0.5;">
           <i class="fa-solid fa-envelope-circle-check"></i> Verify Email
         </button>
+      </form>
+
+      <form id="resendEmailForm" method="POST" action="{{ url_for('resend_email_otp') }}">
+        <input type="hidden" name="email" value="{{ email }}">
       </form>
 
       <div class="auth-switch">
