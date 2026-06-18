@@ -2156,7 +2156,7 @@ def resend_reset_otp():
     expiry = int(time.time()) + 300
     conn   = get_db_connection()
     cursor = conn.cursor()
-        if not _store_otp("reset", identifier, otp):
+    if not _store_otp("reset", identifier, otp):
         cursor.execute(
             "UPDATE users SET otp_code = %s, otp_expiry = %s WHERE email = %s OR phone = %s",
             (otp, expiry, identifier, identifier)
