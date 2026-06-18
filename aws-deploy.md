@@ -48,7 +48,7 @@ python3 -c "from application import init_db; init_db()"
 The app entrypoint is `application.py` and the Flask app object is `app`, so the startup command must be:
 
 ```bash
-gunicorn application:app --workers 1 --timeout 120 --bind 0.0.0.0:$PORT
+gunicorn app:app --workers 1 --timeout 120 --bind 0.0.0.0:$PORT
 ```
 
 This repository already includes a `Procfile` with that command.
@@ -61,15 +61,11 @@ Set these values in your AWS environment:
 - `SESSION_COOKIE_SECURE=true`
 - `DATABASE_URL` — PostgreSQL connection string for RDS/Aurora
 - `NEWS_API_KEY`
-- `EMAIL_PROVIDER=resend` or `EMAIL_PROVIDER=aws_ses`
-- `RESEND_API_KEY` if using Resend
-- `AWS_REGION` if using SES
-- `AWS_SES_FROM_EMAIL` if using SES
-- `SMS_OTP_PROVIDER=fast2sms`, `SMS_OTP_PROVIDER=telesign`, or `SMS_OTP_PROVIDER=msg91`
-- `FAST2SMS_API_KEY` if using Fast2SMS
-- `TELESIGN_CUSTOMER_ID` and `TELESIGN_API_KEY` if using Telesign
-- `MSG91_API_KEY` if using MSG91
+- `RESEND_API_KEY` to enable email OTP delivery via Resend
+- `MSG91_API_KEY` to enable SMS OTP delivery via MSG91
 - `MSG91_SENDER_ID` if using MSG91 (optional; defaults to MSGIND)
+- `MSG91_WIDGET_ID` if using MSG91 client-side verification
+- `MSG91_TOKEN_AUTH` if using MSG91 client-side verification
 
 Optional for CoinDCX authenticated endpoints:
 - `COINDCX_API_KEY`
@@ -101,6 +97,7 @@ Optional for CoinDCX authenticated endpoints:
 ## Notes
 - The app uses `ProxyFix` to support AWS load balancer headers for HTTPS.
 - If you use SES, verify `AWS_SES_FROM_EMAIL` in the target AWS region before sending email.
+- If you use MSG91, set `MSG91_API_KEY`, `MSG91_SENDER_ID`, `MSG91_WIDGET_ID`, and `MSG91_TOKEN_AUTH` as needed.
 - For local testing, run:
   ```bash
   python3 application.py

@@ -12,7 +12,8 @@ import sqlite3
 
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "coinscanner.db")
-DATABASE_URL = os.environ.get("DATABASE_URL") or os.environ.get("AWS_DATABASE_URL") or ""
+# Use DATABASE_URL for production Postgres. Leave empty to use local SQLite.
+DATABASE_URL = os.environ.get("DATABASE_URL") or ""
 
 
 def _use_postgres():
@@ -20,9 +21,15 @@ def _use_postgres():
 
 
 def _translate_sql(sql):
+    """
+    Canonicalize SQL parameter style.
+    The codebase will use Postgres-style `%s` placeholders. When running
+    against SQLite (local dev), translate `%s` -> `?` so sqlite3 accepts it.
+    """
     if _use_postgres():
-        return sql.replace("?", "%s")
-    return sql
+        return sql
+    # sqlite's paramstyle is qmark (?), so convert %s -> ? for SQLite
+    return sql.replace("%s", "?")
 
 
 class _CursorWrapper:
@@ -79,8 +86,15 @@ class _ConnectionWrapper:
 def _connect_native():
     if _use_postgres():
         import psycopg2
-
-        return psycopg2.connect(DATABASE_URL)
+        # Allow optional SSL mode via environment (useful for managed DBs)
+        sslmode = os.environ.get("PG_SSLMODE") or os.environ.get("PGSSLMODE")
+        try:
+            if sslmode:
+                return psycopg2.connect(DATABASE_URL, sslmode=sslmode)
+            return psycopg2.connect(DATABASE_URL)
+        except Exception:
+            # Reraise to let app startup fail loudly in production
+            raise
 
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -253,7 +267,7 @@ def purge_old_logs(days=90):
     cutoff = int(__import__('time').time()) - (days * 86400)
     conn = get_db_connection()
     try:
-        conn.execute("DELETE FROM login_log WHERE timestamp < ?", (cutoff,))
+        conn.execute("DELETE FROM login_log WHERE timestamp < %s", (cutoff,))
         conn.commit()
     except Exception:
         try:

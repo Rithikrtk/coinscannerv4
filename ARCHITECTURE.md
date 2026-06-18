@@ -62,6 +62,389 @@ Browser Request
 
 ---
 
+## Production Architecture (Railway + PostgreSQL + Upstash + Cloudflare + MSG91)
+
+### Full Architecture
+
+```text
+                        USERS
+                          │
+                          │ HTTPS
+                          ▼
+                Cloudflare (DNS + SSL + WAF)
+                          │
+                          ▼
+                 Frontend (Cloudflare Pages)
+                          │
+                          │ API Calls
+                          ▼
+                Railway Backend (Flask/FastAPI)
+                          │
+         ┌────────────────┼─────────────────┐
+         │                │                 │
+         ▼                ▼                 ▼
+ Railway PostgreSQL    Upstash Redis     External APIs
+    (Permanent DB)    (Fast temp data)   (CoinGecko, CoinDCX,
+                                            News APIs, MSG91)
+```
+
+---
+
+## Component breakdown
+
+### 1. Frontend Layer
+
+Recommended:
+
+Cloudflare Pages
+[Cloudflare Pages](https://pages.cloudflare.com?utm_source=chatgpt.com)
+
+Hosts:
+
+- HTML
+- CSS
+- JS
+- Dashboard UI
+
+Responsibilities:
+
+```text
+User Interface
+Token/session handling
+API requests
+Charts
+Portfolio UI
+```
+
+No sensitive logic here.
+
+---
+
+### 2. Edge Layer
+
+Cloudflare
+
+Handles:
+
+```text
+SSL termination
+DNS
+WAF
+Bot protection
+DDoS protection
+Rate limits
+```
+
+This protects your backend.
+
+Flow:
+
+```text
+User → Cloudflare → Railway
+```
+
+Important for:
+
+- OTP abuse
+- scraping
+- brute force
+
+---
+
+### 3. Application Layer
+
+Railway
+[Railway](https://railway.app?utm_source=chatgpt.com)
+
+Runs:
+
+```text
+Flask/FastAPI backend
+Authentication
+OTP verification
+Crypto APIs
+Portfolio logic
+Sessions
+```
+
+Your main app.
+
+Handles:
+
+#### Auth:
+
+```text
+/signup
+/login
+/logout
+/reset-password
+```
+
+---
+
+#### OTP:
+
+```text
+/send-otp
+/verify-otp
+```
+
+---
+
+#### User data:
+
+```text
+profile
+watchlist
+alerts
+settings
+```
+
+---
+
+#### Crypto engine:
+
+```text
+market scanner
+portfolio analysis
+news aggregation
+price alerts
+```
+
+---
+
+## Database Layer
+
+### Railway PostgreSQL
+
+Stores:
+
+```text
+users
+password hashes
+watchlists
+portfolio
+sessions (optional)
+login attempts
+audit logs
+subscriptions
+```
+
+Persistent data.
+
+Example:
+
+```text
+users table
+watchlists table
+transactions table
+alerts table
+```
+
+---
+
+## Cache Layer
+
+### Upstash Redis
+
+[Upstash](https://upstash.com?utm_source=chatgpt.com)
+
+Stores temporary/high-speed data:
+
+```text
+OTP hashes
+OTP expiry
+rate-limit counters
+API cache
+market cache
+session cache
+cooldowns
+```
+
+Example:
+
+```text
+otp:user@email.com → expires in 5 min
+```
+
+Fast.
+Much faster than DB.
+
+---
+
+## OTP Flow Architecture
+
+```text
+User Signup/Login
+        │
+        ▼
+Request OTP
+        │
+        ▼
+Railway Backend
+        │
+        ├── Generate OTP
+        │
+        ├── Hash OTP
+        │
+        ├── Store in Redis (TTL 300s)
+        │
+        ▼
+MSG91 sends OTP
+        │
+        ▼
+User enters OTP
+        │
+        ▼
+Backend verifies from Redis
+        │
+        ▼
+Delete OTP immediately
+```
+
+Secure and scalable.
+
+---
+
+## Login Flow
+
+```text
+User Login
+    │
+    ▼
+Cloudflare
+    │
+    ▼
+Railway App
+    │
+    ├── Verify password hash
+    ├── Check account lock
+    ├── Check failed attempts
+    ├── Generate session
+    │
+    ▼
+PostgreSQL update
+    │
+    ▼
+User dashboard
+```
+
+---
+
+## Market Data Flow
+
+```text
+User requests market data
+         │
+         ▼
+Backend checks Redis cache
+         │
+    ┌────┴────┐
+    │         │
+ Cache Hit   Cache Miss
+    │         │
+    ▼         ▼
+ Return    External APIs
+              │
+              ▼
+         Store in Redis
+              │
+              ▼
+            Return
+```
+
+Reduces API costs.
+
+---
+
+## Security Layers
+
+### Layer 1 — Cloudflare
+
+Protects:
+
+✔ DDoS
+✔ bots
+✔ bad IPs
+
+---
+
+### Layer 2 — App Security
+
+Inside Railway:
+
+✔ rate limiting
+✔ password hashing
+✔ session security
+✔ OTP hashing
+✔ CSRF (if forms)
+✔ CORS restriction
+
+---
+
+### Layer 3 — Database Security
+
+PostgreSQL:
+
+✔ encrypted at rest
+✔ private connection
+✔ credential-based access
+
+---
+
+### Layer 4 — Redis Security
+
+OTP never stored permanently.
+
+TTL-based.
+
+---
+
+## Recommended scaling path
+
+### Stage 1 (current):
+
+```text
+1 app instance
+1 postgres
+1 redis
+```
+
+Supports:
+
+~5k–20k users easily.
+
+---
+
+### Stage 2:
+
+```text
+2 app replicas
+1 postgres
+1 redis
+```
+
+For more traffic.
+
+---
+
+### Stage 3:
+
+```text
+Workers + background tasks
+```
+
+Add:
+
+Celery
+
+For:
+
+- OTP cleanup
+- alerts
+- notifications
+```
+
 ## Request Lifecycle
 
 ### Example: User visits `/coins`

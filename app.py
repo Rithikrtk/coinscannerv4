@@ -35,15 +35,20 @@ CACHING:
 
 import os
 import time
-import random
+import json
+import secrets
 import threading
 from functools import wraps
 
+import redis
 import requests
 from flask import (
     Flask, render_template, session, url_for,
     request, redirect, jsonify, abort
 )
+from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
 from concurrent.futures import ThreadPoolExecutor
@@ -93,34 +98,50 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE']   = _env_flag('SESSION_COOKIE_SECURE', os.environ.get('FLASK_ENV') == 'production')
 app.config['PREFERRED_URL_SCHEME']    = 'https' if app.config['SESSION_COOKIE_SECURE'] else 'http'
 
+# ── Environment configuration ───────────────────────────
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+app.config["SESSION_COOKIE_SECURE"] = app.config['SESSION_COOKIE_SECURE']
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+# ── Redis + rate limiting ──────────────────────────────────
+REDIS_URL = os.getenv("REDIS_URL")
+redis_client = None
+if REDIS_URL:
+    try:
+        redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+    except Exception as e:
+        app.logger.warning("Could not connect to Redis: %s", e)
+        redis_client = None
+
+limiter = Limiter(
+    app,
+    key_func=get_remote_address,
+    storage_uri=REDIS_URL or 'memory://',
+)
+
+# ── CORS settings — restrict origins to production only.
+CORS(
+    app,
+    origins=[origin.strip() for origin in os.getenv("CORS_ALLOWED_ORIGINS", "https://yourdomain.com").split(",") if origin.strip()],
+    supports_credentials=True,
+)
+
 # CoinDCX API credentials — for authenticated endpoints (candles, market data)
-# Generate at: https://coindcx.com/settings/api
-COINDCX_API_KEY = os.environ.get("COINDCX_API_KEY", "")
-COINDCX_SECRET  = os.environ.get("COINDCX_SECRET",  "")
+COINDCX_API_KEY = os.getenv("COINDCX_API_KEY", "")
+COINDCX_SECRET  = os.getenv("COINDCX_SECRET",  "")
 
 # News API key (newsdata.io) — optional, news page shows nothing without it
-NEWS_API_KEY   = os.environ.get("NEWS_API_KEY")
-
-# Email OTP provider — supports Resend (default), AWS SES, or console fallback
-EMAIL_PROVIDER = os.environ.get("EMAIL_PROVIDER", "resend").strip().lower()
-
-
+NEWS_API_KEY   = os.getenv("NEWS_API_KEY")
 
 # Email sender address — override this in Render if you need a test sender
-EMAIL_FROM_ADDRESS = os.environ.get("EMAIL_FROM_ADDRESS", "onboarding@resend.dev")
+EMAIL_FROM_ADDRESS = os.getenv("EMAIL_FROM_ADDRESS", "onboarding@resend.dev")
 
-# AWS SES settings — used when EMAIL_PROVIDER=aws_ses
-# AWS credentials are loaded by boto3 from the standard AWS credential chain
-AWS_REGION = os.environ.get("AWS_REGION") or os.environ.get("AWS_SES_REGION") or "us-east-1"
-AWS_SES_FROM_EMAIL = os.environ.get("AWS_SES_FROM_EMAIL", "noreply@coinscanner.tech")
-
-
-
-# Telesign credentials — for SMS OTP delivery using Telesign
-MSG91_API_KEY    = os.environ.get("MSG91_API_KEY")
-MSG91_SENDER_ID  = os.environ.get("MSG91_SENDER_ID", "MSGIND")
-MSG91_WIDGET_ID  = os.environ.get("MSG91_WIDGET_ID")
-MSG91_TOKEN_AUTH = os.environ.get("MSG91_TOKEN_AUTH")
+# MSG91 credentials — for SMS OTP delivery using MSG91
+MSG91_API_KEY    = os.getenv("MSG91_API_KEY")
+MSG91_SENDER_ID  = os.getenv("MSG91_SENDER_ID", "MSGIND")
+MSG91_WIDGET_ID  = os.getenv("MSG91_WIDGET_ID")
+MSG91_TOKEN_AUTH = os.getenv("MSG91_TOKEN_AUTH")
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -163,6 +184,30 @@ META_CACHE   = {"data": {},           "timestamp": 0}  # CoinGecko metadata
 GLOBAL_CACHE = {"data": {},           "timestamp": 0}  # CoinGecko global stats
 NEWS_CACHE   = {"data": [],           "timestamp": 0}  # newsdata.io articles
 MARKET_CACHE = {"data": ([], [], []), "timestamp": 0}  # gainers/losers/picks
+
+
+def _redis_cache_get(key):
+    if not redis_client:
+        return None
+    try:
+        raw = redis_client.get(key)
+        if not raw:
+            return None
+        return json.loads(raw)
+    except Exception as e:
+        app.logger.warning("Redis cache get failed for %s: %s", key, e)
+        return None
+
+
+def _redis_cache_set(key, value, ttl):
+    if not redis_client:
+        return False
+    try:
+        redis_client.setex(key, ttl, json.dumps(value))
+        return True
+    except Exception as e:
+        app.logger.warning("Redis cache set failed for %s: %s", key, e)
+        return False
 
 
 # ══════════════════════════════════════════════════════════
@@ -213,7 +258,6 @@ COINGECKO_TO_DCX = {
 
 import hmac as _hmac
 import hashlib as _hashlib
-import json as _json
 import base64
 
 def _dcx_auth_headers(body: dict) -> dict:
@@ -230,7 +274,7 @@ def _dcx_auth_headers(body: dict) -> dict:
     Returns:
         dict — headers to merge into your requests.post() call
     """
-    body_json = _json.dumps(body, separators=(",", ":")).encode("utf-8")
+    body_json = json.dumps(body, separators=(",", ":")).encode("utf-8")
     secret    = COINDCX_SECRET.encode("utf-8")
     signature = _hmac.new(secret, body_json, _hashlib.sha256).hexdigest()
     return {
@@ -257,9 +301,14 @@ def get_dcx_prices():
         dict — { "BTC": { last_price, change_24h, high, low, volume, bid, ask }, ... }
     """
     # Return cached data if it's still fresh (under 60 seconds old)
-    with _cache_lock:
-        if time.time() - PRICE_CACHE["timestamp"] < 60:
-            return PRICE_CACHE["data"]
+    if redis_client is not None:
+        cached = _redis_cache_get("cache:prices")
+        if cached and time.time() - cached.get("timestamp", 0) < 60:
+            return cached.get("data", {})
+    else:
+        with _cache_lock:
+            if time.time() - PRICE_CACHE["timestamp"] < 60:
+                return PRICE_CACHE["data"]
 
     try:
         res = requests.get("https://api.coindcx.com/exchange/ticker", timeout=10)
@@ -287,9 +336,12 @@ def get_dcx_prices():
             }
 
     # Update cache with fresh data
-    with _cache_lock:
-        PRICE_CACHE["data"]      = price_map
-        PRICE_CACHE["timestamp"] = time.time()
+    if redis_client is not None:
+        _redis_cache_set("cache:prices", {"data": price_map, "timestamp": time.time()}, 60)
+    else:
+        with _cache_lock:
+            PRICE_CACHE["data"]      = price_map
+            PRICE_CACHE["timestamp"] = time.time()
     return price_map
 
 
@@ -304,9 +356,14 @@ def get_coin_metadata():
     INR pair format for candles API: I-BTC_INR (not B-BTC_INR)
     Cached for 5 minutes.
     """
-    with _cache_lock:
-        if time.time() - META_CACHE["timestamp"] < 300:
-            return META_CACHE["data"]
+    if redis_client is not None:
+        cached = _redis_cache_get("cache:metadata")
+        if cached and time.time() - cached.get("timestamp", 0) < 300:
+            return cached.get("data", {})
+    else:
+        with _cache_lock:
+            if time.time() - META_CACHE["timestamp"] < 300:
+                return META_CACHE["data"]
 
     # ── Step 1: Fetch markets_details for real coin names ──
     name_map  = {}   # symbol → full name  e.g. "BTC" → "Bitcoin"
@@ -466,9 +523,12 @@ def get_coin_metadata():
             "pair":               candle_pair,   # e.g. "I-BTC_INR" — correct format for candles
         }
 
-    with _cache_lock:
-        META_CACHE["data"]      = meta_map
-        META_CACHE["timestamp"] = time.time()
+    if redis_client is not None:
+        _redis_cache_set("cache:metadata", {"data": meta_map, "timestamp": time.time()}, 300)
+    else:
+        with _cache_lock:
+            META_CACHE["data"]      = meta_map
+            META_CACHE["timestamp"] = time.time()
     app.logger.info("CoinDCX metadata built — %d INR coins", len(meta_map))
     return meta_map
 
@@ -485,9 +545,14 @@ def get_global_stats():
     Returns:
         dict — { total_market_cap_inr, btc_dominance, active_coins, ... }
     """
-    with _cache_lock:
-        if time.time() - GLOBAL_CACHE["timestamp"] < 300:   # 300s = 5 minutes
-            return GLOBAL_CACHE["data"]
+    if redis_client is not None:
+        cached = _redis_cache_get("cache:global_stats")
+        if cached and time.time() - cached.get("timestamp", 0) < 300:
+            return cached.get("data", {})
+    else:
+        with _cache_lock:
+            if time.time() - GLOBAL_CACHE["timestamp"] < 300:   # 300s = 5 minutes
+                return GLOBAL_CACHE["data"]
 
     try:
         res = requests.get("https://api.coingecko.com/api/v3/global", timeout=10)
@@ -506,9 +571,12 @@ def get_global_stats():
         "markets":              raw.get("markets", 0),
     }
 
-    with _cache_lock:
-        GLOBAL_CACHE["data"]      = stats
-        GLOBAL_CACHE["timestamp"] = time.time()
+    if redis_client is not None:
+        _redis_cache_set("cache:global_stats", {"data": stats, "timestamp": time.time()}, 300)
+    else:
+        with _cache_lock:
+            GLOBAL_CACHE["data"]      = stats
+            GLOBAL_CACHE["timestamp"] = time.time()
     return stats
 
 
@@ -577,9 +645,14 @@ def get_market_movers():
     Returns:
         tuple — (gainers, losers, picks)  each is a list of 5 coin dicts
     """
-    with _cache_lock:
-        if time.time() - MARKET_CACHE["timestamp"] < 60:
-            return MARKET_CACHE["data"]
+    if redis_client is not None:
+        cached = _redis_cache_get("cache:market_movers")
+        if cached and time.time() - cached.get("timestamp", 0) < 60:
+            return tuple(cached.get("data", ([], [], [])))
+    else:
+        with _cache_lock:
+            if time.time() - MARKET_CACHE["timestamp"] < 60:
+                return MARKET_CACHE["data"]
 
     prices  = get_dcx_prices()
     meta    = get_coin_metadata()
@@ -593,9 +666,16 @@ def get_market_movers():
     # Picks = highest volume (proxy for popularity since no market cap rank)
     picks   = sorted(coins, key=lambda x: x["total_volume"], reverse=True)[:5]
 
-    with _cache_lock:
-        MARKET_CACHE["data"]      = (gainers, losers, picks)
-        MARKET_CACHE["timestamp"] = time.time()
+    if redis_client is not None:
+        _redis_cache_set(
+            "cache:market_movers",
+            {"data": [gainers, losers, picks], "timestamp": time.time()},
+            60
+        )
+    else:
+        with _cache_lock:
+            MARKET_CACHE["data"]      = (gainers, losers, picks)
+            MARKET_CACHE["timestamp"] = time.time()
     return gainers, losers, picks
 
 
@@ -735,9 +815,14 @@ def get_crypto_news():
         return []
 
     # Return cached data if fresh (under 30 minutes old)
-    with _cache_lock:
-        if time.time() - NEWS_CACHE["timestamp"] < 1800:
-            return NEWS_CACHE["data"]
+    if redis_client is not None:
+        cached = _redis_cache_get("cache:news")
+        if cached and time.time() - cached.get("timestamp", 0) < 1800:
+            return cached.get("data", [])
+    else:
+        with _cache_lock:
+            if time.time() - NEWS_CACHE["timestamp"] < 1800:
+                return NEWS_CACHE["data"]
 
     url    = "https://newsdata.io/api/1/news"
     params = {
@@ -762,9 +847,12 @@ def get_crypto_news():
 
     articles = response_data.get("results", [])
 
-    with _cache_lock:
-        NEWS_CACHE["data"]      = articles
-        NEWS_CACHE["timestamp"] = time.time()
+    if redis_client is not None:
+        _redis_cache_set("cache:news", {"data": articles, "timestamp": time.time()}, 1800)
+    else:
+        with _cache_lock:
+            NEWS_CACHE["data"]      = articles
+            NEWS_CACHE["timestamp"] = time.time()
 
     app.logger.info("newsdata.io refreshed — %d articles cached", len(articles))
     return articles
@@ -807,7 +895,7 @@ def login_required(f):
             try:
                 conn  = get_db_connection()
                 row   = conn.execute(
-                    "SELECT session_version FROM users WHERE id = ?", (uid,)
+                    "SELECT session_version FROM users WHERE id = %s", (uid,)
                 ).fetchone()
                 conn.close()
                 if not row or row["session_version"] != sv:
@@ -1357,30 +1445,6 @@ def send_otp_email(to_email, otp, purpose="signup"):
         "This is an automated message. Do not reply.\n"
     )
 
-    if EMAIL_PROVIDER == "aws_ses":
-        try:
-            import boto3
-            from botocore.exceptions import BotoCoreError, ClientError
-
-            ses_client = boto3.client("ses", region_name=AWS_REGION)
-            ses_client.send_email(
-                Source=AWS_SES_FROM_EMAIL,
-                Destination={"ToAddresses": [to_email]},
-                Message={
-                    "Subject": {"Data": subject, "Charset": "UTF-8"},
-                    "Body": {
-                        "Html": {"Data": html_body, "Charset": "UTF-8"},
-                        "Text": {"Data": text_body, "Charset": "UTF-8"},
-                    },
-                },
-            )
-            app.logger.info("OTP email sent via AWS SES to %s (purpose=%s)", to_email, purpose)
-            return
-        except (ImportError, BotoCoreError, ClientError) as e:
-            app.logger.error("AWS SES email failed for %s: %s", to_email, e)
-            print(f"\n==================================================\n[DEV OTP] {purpose.upper()} code for {to_email}: {otp}\n==================================================\n", flush=True)
-            return
-
     if not RESEND_API_KEY:
         # Development fallback — log to console
         print(f"\n==================================================\n[DEV OTP] {purpose.upper()} code for {to_email}: {otp}\n==================================================\n", flush=True)
@@ -1403,9 +1467,9 @@ def send_otp_email(to_email, otp, purpose="signup"):
 
 def send_otp_sms(phone, otp, purpose="signup"):
     """
-    Send an OTP to the user's phone via Fast2SMS or Telesign.
+    Send an OTP to the user's phone via MSG91.
 
-    Falls back to terminal print if SMS provider configuration is missing —
+    Falls back to terminal print if MSG91 configuration is missing —
     so local development works without SMS configuration.
 
     Args:
@@ -1431,87 +1495,7 @@ def send_otp_sms(phone, otp, purpose="signup"):
     else:
         message = f"Your CoinScanner password reset code is {otp}. Valid for 5 minutes. Do not share."
 
-    provider = SMS_OTP_PROVIDER or "fast2sms"
-
-    if provider == "telesign":
-        if not TELESIGN_CUSTOMER_ID or not TELESIGN_API_KEY:
-            print(
-                f"\n==================================================\n"
-                f"[DEV SMS OTP] {purpose.upper()} code for {phone_number}: {otp}\n"
-                f"==================================================\n",
-                flush=True
-            )
-            return
-
-        try:
-            auth_value = base64.b64encode(
-                f"{TELESIGN_CUSTOMER_ID}:{TELESIGN_API_KEY}".encode("utf-8")
-            ).decode("ascii")
-            res = requests.post(
-                "https://rest-api.telesign.com/v2/messaging",
-                headers={
-                    "Authorization": f"Basic {auth_value}",
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                data={
-                    "phone_number": phone_number,
-                    "message": message,
-                    "message_type": "OTP",
-                },
-                timeout=10
-            )
-            if res.status_code in (200, 201):
-                app.logger.info("SMS OTP sent via Telesign to %s (purpose=%s)", phone_number, purpose)
-            else:
-                app.logger.warning(
-                    "Telesign SMS failed for %s: %s %s",
-                    phone_number,
-                    res.status_code,
-                    res.text,
-                )
-        except Exception as e:
-            app.logger.error("Telesign SMS error for %s: %s", phone_number, e)
-        return
-
-    if provider == "msg91":
-        if not MSG91_API_KEY:
-            print(
-                f"\n==================================================\n"
-                f"[DEV SMS OTP] {purpose.upper()} code for {phone_number}: {otp}\n"
-                f"==================================================\n",
-                flush=True
-            )
-            return
-
-        try:
-            res = requests.get(
-                "https://control.msg91.com/api/sendhttp.php",
-                params={
-                    "authkey": MSG91_API_KEY,
-                    "mobiles": digits,
-                    "message": message,
-                    "sender": MSG91_SENDER_ID,
-                    "route": "otp",
-                    "country": "91",
-                },
-                timeout=10
-            )
-            body = res.text.strip().lower()
-            if res.status_code == 200 and "success" in body:
-                app.logger.info("SMS OTP sent via MSG91 to %s (purpose=%s)", phone_number, purpose)
-            else:
-                app.logger.warning(
-                    "MSG91 SMS failed for %s: %s %s",
-                    phone_number,
-                    res.status_code,
-                    res.text,
-                )
-        except Exception as e:
-            app.logger.error("MSG91 SMS error for %s: %s", phone_number, e)
-        return
-
-    if not FAST2SMS_API_KEY:
-        # Development fallback — print to terminal
+    if not MSG91_API_KEY:
         print(
             f"\n==================================================\n"
             f"[DEV SMS OTP] {purpose.upper()} code for {phone_number}: {otp}\n"
@@ -1521,24 +1505,63 @@ def send_otp_sms(phone, otp, purpose="signup"):
         return
 
     try:
-        res = requests.post(
-            "https://www.fast2sms.com/dev/bulkV2",
-            headers={"authorization": FAST2SMS_API_KEY},
-            json={
-                "route":    "otp",
-                "variables_values": otp,
-                "flash":    0,
-                "numbers":  digits,
+        res = requests.get(
+            "https://control.msg91.com/api/sendhttp.php",
+            params={
+                "authkey": MSG91_API_KEY,
+                "mobiles": digits,
+                "message": message,
+                "sender": MSG91_SENDER_ID,
+                "route": "otp",
+                "country": "91",
             },
             timeout=10
         )
-        data = res.json()
-        if data.get("return"):
-            app.logger.info("SMS OTP sent to %s (purpose=%s)", phone_number, purpose)
+        body = res.text.strip().lower()
+        if res.status_code == 200 and "success" in body:
+            app.logger.info("SMS OTP sent via MSG91 to %s (purpose=%s)", phone_number, purpose)
         else:
-            app.logger.warning("Fast2SMS failed for %s: %s", phone_number, data)
+            app.logger.warning(
+                "MSG91 SMS failed for %s: %s %s",
+                phone_number,
+                res.status_code,
+                res.text,
+            )
     except Exception as e:
-        app.logger.error("Fast2SMS error for %s: %s", phone_number, e)
+        app.logger.error("MSG91 SMS error for %s: %s", phone_number, e)
+    return
+
+
+def _build_otp_key(category, identifier):
+    return f"otp:{category}:{identifier.strip().lower()}"
+
+
+def _generate_otp():
+    return "".join(str(secrets.randbelow(10)) for _ in range(6))
+
+
+def _store_otp(category, identifier, otp):
+    if not redis_client:
+        return False
+    key = _build_otp_key(category, identifier)
+    otp_hash = generate_password_hash(otp)
+    redis_client.setex(key, 300, otp_hash)
+    return True
+
+
+def _verify_otp(category, identifier, entered):
+    if not redis_client:
+        return None
+    key = _build_otp_key(category, identifier)
+    stored = redis_client.get(key)
+    if not stored:
+        return False
+    if isinstance(stored, bytes):
+        stored = stored.decode()
+    valid = check_password_hash(stored, entered)
+    if valid:
+        redis_client.delete(key)
+    return valid
 
 
 def log_login_attempt(ip, identifier, success, reason):
@@ -1556,7 +1579,7 @@ def log_login_attempt(ip, identifier, success, reason):
         conn = get_db_connection()
         conn.execute(
             "INSERT INTO login_log (ip, identifier, success, reason, timestamp)"
-            " VALUES (?, ?, ?, ?, ?)",
+            " VALUES (%s, %s, %s, %s, %s)",
             (ip, identifier, 1 if success else 0, reason, int(time.time()))
         )
         conn.commit()
@@ -1610,7 +1633,7 @@ def login():
             cursor = conn.cursor()
             # Allow login with either email or phone number
             cursor.execute(
-                "SELECT * FROM users WHERE email = ? OR phone = ? LIMIT 1",
+                "SELECT * FROM users WHERE email = %s OR phone = %s LIMIT 1",
                 (identifier, identifier)
             )
             user = cursor.fetchone()
@@ -1640,7 +1663,7 @@ def login():
                 if new_attempts >= 3:
                     lock_until = int(time.time()) + 600  # 10 minutes
                 cursor.execute(
-                    "UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?",
+                    "UPDATE users SET failed_attempts = %s, locked_until = %s WHERE id = %s",
                     (new_attempts, lock_until, user["id"])
                 )
                 conn.commit()
@@ -1655,7 +1678,7 @@ def login():
                 # ✅ Login successful
                 # Reset failed attempts counter
                 cursor.execute(
-                    "UPDATE users SET failed_attempts = 0, locked_until = 0 WHERE id = ?",
+                    "UPDATE users SET failed_attempts = 0, locked_until = 0 WHERE id = %s",
                     (user["id"],)
                 )
                 conn.commit()
@@ -1685,13 +1708,14 @@ def login():
 
 
 @app.route("/signup", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def signup():
     """
     Signup — collects name, email, phone, password.
     Generates two separate OTPs:
       - email_otp  → sent to email via Resend
-      - phone_otp  → sent to phone via Fast2SMS
-    Both stored in DB. User must verify both before account is active.
+      - phone_otp  → sent to phone via MSG91
+    Stored in Redis when available, with DB fallback for local development.
     """
     if session.get("user_id"):
         return redirect(url_for("home"))
@@ -1718,7 +1742,7 @@ def signup():
 
             # Step 1 — check verified duplicates FIRST, before touching anything
             cursor.execute(
-                "SELECT id FROM users WHERE email = ? AND is_verified = 1 LIMIT 1",
+                "SELECT id FROM users WHERE email = %s AND is_verified = 1 LIMIT 1",
                 (email,)
             )
             if cursor.fetchone():
@@ -1726,7 +1750,7 @@ def signup():
                 error = "An account with this email already exists."
             else:
                 cursor.execute(
-                    "SELECT id FROM users WHERE phone = ? AND is_verified = 1 LIMIT 1",
+                    "SELECT id FROM users WHERE phone = %s AND is_verified = 1 LIMIT 1",
                     (phone,)
                 )
                 if cursor.fetchone():
@@ -1735,7 +1759,7 @@ def signup():
                 else:
                     # Step 2 — no verified account found, safe to clean up stale rows
                     cursor.execute(
-                        "DELETE FROM users WHERE (email = ? OR phone = ?) AND is_verified = 0",
+                        "DELETE FROM users WHERE (email = %s OR phone = %s) AND is_verified = 0",
                         (email, phone)
                     )
                     conn.commit()
@@ -1744,10 +1768,24 @@ def signup():
                     hashed_pw = generate_password_hash(password, method="pbkdf2:sha256")
                     expiry    = int(time.time()) + 300
 
-                    email_otp = str(random.randint(100000, 999999))
-                    phone_otp = str(random.randint(100000, 999999))
+                    email_otp = _generate_otp()
+                    phone_otp = _generate_otp()
                     while phone_otp == email_otp:
-                        phone_otp = str(random.randint(100000, 999999))
+                        phone_otp = _generate_otp()
+
+                    if _store_otp("email", email, email_otp):
+                        stored_email_otp = None
+                        stored_email_otp_expiry = None
+                    else:
+                        stored_email_otp = email_otp
+                        stored_email_otp_expiry = expiry
+
+                    if _store_otp("phone", phone, phone_otp):
+                        stored_phone_otp = None
+                        stored_phone_otp_expiry = None
+                    else:
+                        stored_phone_otp = phone_otp
+                        stored_phone_otp_expiry = expiry
 
                     try:
                         cursor.execute(
@@ -1755,9 +1793,10 @@ def signup():
                             "(name, email, phone, password_hash, "
                             " email_otp, email_otp_expiry, "
                             " phone_otp, phone_otp_expiry) "
-                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                            (name, email, phone, hashed_pw,
-                             email_otp, expiry, phone_otp, expiry)
+                               "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                               (name, email, phone, hashed_pw,
+                                stored_email_otp, stored_email_otp_expiry,
+                                stored_phone_otp, stored_phone_otp_expiry)
                         )
                         conn.commit()
                     except Exception as e:
@@ -1779,6 +1818,7 @@ def signup():
 
 
 @app.route("/verify-email", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def verify_email():
     """
     Step 1 of 2 — verify email OTP sent at signup.
@@ -1799,7 +1839,7 @@ def verify_email():
         entered = request.form.get("otp", "").strip()
         conn    = get_db_connection()
         cursor  = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+        cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
         user    = cursor.fetchone()
 
         if not user:
@@ -1808,6 +1848,10 @@ def verify_email():
 
         if not entered:
             error = "Please enter the OTP."
+        elif redis_client:
+            valid = _verify_otp("email", email, entered)
+            if not valid:
+                error = "Incorrect OTP. Please try again."
         elif int(time.time()) > (user["email_otp_expiry"] or 0):
             error = "OTP has expired. Please sign up again."
         elif user["email_otp"] != entered:
@@ -1815,7 +1859,7 @@ def verify_email():
         else:
             cursor.execute(
                 "UPDATE users SET email_verified = 1, email_otp = NULL, email_otp_expiry = NULL"
-                " WHERE email = ?",
+                " WHERE email = %s",
                 (email,)
             )
             conn.commit()
@@ -1836,6 +1880,7 @@ def verify_email():
 
 
 @app.route("/resend-email-otp", methods=["POST"])
+@limiter.limit("5 per minute")
 def resend_email_otp():
     """
     Resend the signup email OTP.
@@ -1846,7 +1891,7 @@ def resend_email_otp():
 
     conn   = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+    cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
     user = cursor.fetchone()
 
     if not user:
@@ -1857,13 +1902,14 @@ def resend_email_otp():
         conn.close()
         return redirect(url_for("verify_phone", email=email))
 
-    otp    = str(random.randint(100000, 999999))
+    otp    = _generate_otp()
     expiry = int(time.time()) + 300
-    cursor.execute(
-        "UPDATE users SET email_otp = ?, email_otp_expiry = ? WHERE email = ?",
-        (otp, expiry, email)
-    )
-    conn.commit()
+    if not _store_otp("email", email, otp):
+        cursor.execute(
+            "UPDATE users SET email_otp = %s, email_otp_expiry = %s WHERE email = %s",
+            (otp, expiry, email)
+        )
+        conn.commit()
     conn.close()
 
     send_otp_email(email, otp, purpose="signup")
@@ -1871,6 +1917,7 @@ def resend_email_otp():
 
 
 @app.route("/verify-phone", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def verify_phone():
     """
     Step 2 of 2 — verify phone OTP sent at signup.
@@ -1885,7 +1932,7 @@ def verify_phone():
         entered = request.form.get("otp", "").strip()
         conn    = get_db_connection()
         cursor  = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
+        cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
         user    = cursor.fetchone()
 
         if not user:
@@ -1899,6 +1946,9 @@ def verify_phone():
 
         if not entered:
             error = "Please enter the OTP."
+        elif redis_client:
+            if not _verify_otp("phone", email, entered):
+                error = "Incorrect OTP. Please try again."
         elif int(time.time()) > (user["phone_otp_expiry"] or 0):
             error = "OTP has expired. Please sign up again."
         elif user["phone_otp"] != entered:
@@ -1908,7 +1958,7 @@ def verify_phone():
             cursor.execute(
                 "UPDATE users SET phone_verified = 1, is_verified = 1,"
                 " phone_otp = NULL, phone_otp_expiry = NULL"
-                " WHERE email = ?",
+                " WHERE email = %s",
                 (email,)
             )
             conn.commit()
@@ -1926,23 +1976,24 @@ def verify_phone():
     # Mask phone for display
     conn   = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT phone, email_verified FROM users WHERE email = ?", (email,))
+    cursor.execute("SELECT phone, email_verified FROM users WHERE email = %s", (email,))
     row    = cursor.fetchone()
 
     success = None
     if request.args.get("resend") and row and row["phone"] and row["email_verified"]:
-        otp    = str(random.randint(100000, 999999))
+        otp    = _generate_otp()
         expiry = int(time.time()) + 300
-        cursor.execute(
-            "UPDATE users SET phone_otp = ?, phone_otp_expiry = ? WHERE email = ?",
-            (otp, expiry, email)
-        )
-        conn.commit()
+        if not _store_otp("phone", row["phone"], otp):
+            cursor.execute(
+                "UPDATE users SET phone_otp = %s, phone_otp_expiry = %s WHERE email = %s",
+                (otp, expiry, email)
+            )
+            conn.commit()
         send_otp_sms(row["phone"], otp, purpose="signup")
         success = "A new OTP has been sent to your mobile."
 
     conn.close()
-    msg91_enabled = SMS_OTP_PROVIDER == "msg91" and bool(MSG91_WIDGET_ID) and bool(MSG91_TOKEN_AUTH)
+    msg91_enabled = bool(MSG91_WIDGET_ID) and bool(MSG91_TOKEN_AUTH)
     msg91_identifier = ""
     masked_phone = ""
     if row and row["phone"]:
@@ -1988,6 +2039,7 @@ def logout():
 
 
 @app.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def forgot_password():
     """
     Forgot Password — Step 1: Enter email or phone.
@@ -2008,7 +2060,7 @@ def forgot_password():
             conn   = get_db_connection()
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT * FROM users WHERE email = ? OR phone = ? LIMIT 1",
+                "SELECT * FROM users WHERE email = %s OR phone = %s LIMIT 1",
                 (identifier, identifier)
             )
             user = cursor.fetchone()
@@ -2018,13 +2070,14 @@ def forgot_password():
 
             if user:
                 # Account found — generate OTP and send via email
-                otp    = str(random.randint(100000, 999999))
+                otp    = _generate_otp()
                 expiry = int(time.time()) + 300
-                cursor.execute(
-                    "UPDATE users SET otp_code = ?, otp_expiry = ? WHERE id = ?",
-                    (otp, expiry, user["id"])
-                )
-                conn.commit()
+                if not _store_otp("reset", identifier, otp):
+                    cursor.execute(
+                        "UPDATE users SET otp_code = %s, otp_expiry = %s WHERE id = %s",
+                        (otp, expiry, user["id"])
+                    )
+                    conn.commit()
                 send_otp_email(identifier, otp, purpose="reset")
             # No else — silently do nothing if account doesn't exist
 
@@ -2035,6 +2088,8 @@ def forgot_password():
 
 
 @app.route("/verify-reset-otp", methods=["GET", "POST"])
+@app.route("/verify-reset-otp", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def verify_reset_otp():
     """
     Forgot Password — Step 2: Verify OTP.
@@ -2054,7 +2109,7 @@ def verify_reset_otp():
         conn        = get_db_connection()
         cursor      = conn.cursor()
         cursor.execute(
-            "SELECT * FROM users WHERE email = ? OR phone = ? LIMIT 1",
+            "SELECT * FROM users WHERE email = %s OR phone = %s LIMIT 1",
             (identifier, identifier)
         )
         user = cursor.fetchone()
@@ -2065,6 +2120,9 @@ def verify_reset_otp():
 
         if not entered_otp:
             error = "Please enter the OTP."
+        elif redis_client is not None:
+            if not _verify_otp("reset", identifier, entered_otp):
+                error = "Incorrect OTP. Please try again."
         elif int(time.time()) > (user["otp_expiry"] or 0):
             error = "OTP has expired. Please request a new one."
         elif user["otp_code"] != entered_otp:
@@ -2083,6 +2141,8 @@ def verify_reset_otp():
 
 
 @app.route("/resend-reset-otp", methods=["POST"])
+@app.route("/resend-reset-otp", methods=["POST"])
+@limiter.limit("5 per minute")
 def resend_reset_otp():
     """
     Resend a new OTP for password reset.
@@ -2092,15 +2152,16 @@ def resend_reset_otp():
     if not identifier:
         return redirect(url_for("forgot_password"))
 
-    otp    = str(random.randint(100000, 999999))
+    otp    = _generate_otp()
     expiry = int(time.time()) + 300
     conn   = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE users SET otp_code = ?, otp_expiry = ? WHERE email = ? OR phone = ?",
-        (otp, expiry, identifier, identifier)
-    )
-    conn.commit()
+        if not _store_otp("reset", identifier, otp):
+        cursor.execute(
+            "UPDATE users SET otp_code = %s, otp_expiry = %s WHERE email = %s OR phone = %s",
+            (otp, expiry, identifier, identifier)
+        )
+        conn.commit()
     conn.close()
     send_otp_email(identifier, otp, purpose="reset")
     return redirect(url_for("verify_reset_otp"))
@@ -2134,9 +2195,9 @@ def reset_password():
             conn   = get_db_connection()
             cursor = conn.cursor()
             cursor.execute(
-                "UPDATE users SET password_hash = ?, otp_code = NULL, otp_expiry = NULL,"
+                "UPDATE users SET password_hash = %s, otp_code = NULL, otp_expiry = NULL,"
                 " session_version = session_version + 1"
-                " WHERE id = ?",
+                " WHERE id = %s",
                 (generate_password_hash(new_pw, method="pbkdf2:sha256"), user_id)
             )
             conn.commit()
@@ -2177,7 +2238,7 @@ def profile():
     cursor  = conn.cursor()
 
     cursor.execute(
-        "SELECT id, name, email, created_at FROM users WHERE id = ?",
+        "SELECT id, name, email, created_at FROM users WHERE id = %s",
         (user_id,)
     )
     user = cursor.fetchone()
@@ -2189,13 +2250,13 @@ def profile():
         return redirect(url_for("login"))
 
     cursor.execute(
-        "SELECT * FROM coin_watchlist WHERE user_id = ? ORDER BY added_at DESC",
+        "SELECT * FROM coin_watchlist WHERE user_id = %s ORDER BY added_at DESC",
         (user_id,)
     )
     coin_watchlist = cursor.fetchall()
 
     cursor.execute(
-        "SELECT * FROM exchange_watchlist WHERE user_id = ? ORDER BY added_at DESC",
+        "SELECT * FROM exchange_watchlist WHERE user_id = %s ORDER BY added_at DESC",
         (user_id,)
     )
     exchange_watchlist = cursor.fetchall()
@@ -2238,7 +2299,7 @@ def change_password():
             conn   = get_db_connection()
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT password_hash FROM users WHERE id = ?",
+                "SELECT password_hash FROM users WHERE id = %s",
                 (session["user_id"],)
             )
             row = cursor.fetchone()
@@ -2248,7 +2309,7 @@ def change_password():
                 conn.close()
             else:
                 cursor.execute(
-                    "UPDATE users SET password_hash = ? WHERE id = ?",
+                    "UPDATE users SET password_hash = %s WHERE id = %s",
                     (generate_password_hash(new_pw, method="pbkdf2:sha256"), session["user_id"])
                 )
                 conn.commit()
@@ -2302,13 +2363,13 @@ def watchlist_coin_toggle():
 
     # Check if already saved
     cursor.execute(
-        "SELECT id FROM coin_watchlist WHERE user_id=? AND coin_id=?",
+        "SELECT id FROM coin_watchlist WHERE user_id=%s AND coin_id=%s",
         (user_id, coin_id)
     )
     if cursor.fetchone():
         # Already saved → remove it
         cursor.execute(
-            "DELETE FROM coin_watchlist WHERE user_id=? AND coin_id=?",
+            "DELETE FROM coin_watchlist WHERE user_id=%s AND coin_id=%s",
             (user_id, coin_id)
         )
         conn.commit()
@@ -2318,7 +2379,7 @@ def watchlist_coin_toggle():
     # Not saved → add it
     cursor.execute(
         "INSERT INTO coin_watchlist (user_id, coin_id, coin_name, coin_symbol, coin_image)"
-        " VALUES (?, ?, ?, ?, ?)",
+        " VALUES (%s, %s, %s, %s, %s)",
         (user_id, coin_id, coin_name, coin_symbol, coin_image)
     )
     conn.commit()
@@ -2340,7 +2401,7 @@ def api_watchlist_coins():
     conn   = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT coin_id FROM coin_watchlist WHERE user_id=?",
+        "SELECT coin_id FROM coin_watchlist WHERE user_id=%s",
         (session["user_id"],)
     )
     ids = [r["coin_id"] for r in cursor.fetchall()]
@@ -2375,12 +2436,12 @@ def watchlist_exchange_toggle():
     cursor  = conn.cursor()
 
     cursor.execute(
-        "SELECT id FROM exchange_watchlist WHERE user_id=? AND exchange_id=?",
+        "SELECT id FROM exchange_watchlist WHERE user_id=%s AND exchange_id=%s",
         (user_id, exchange_id)
     )
     if cursor.fetchone():
         cursor.execute(
-            "DELETE FROM exchange_watchlist WHERE user_id=? AND exchange_id=?",
+            "DELETE FROM exchange_watchlist WHERE user_id=%s AND exchange_id=%s",
             (user_id, exchange_id)
         )
         conn.commit()
@@ -2389,7 +2450,7 @@ def watchlist_exchange_toggle():
 
     cursor.execute(
         "INSERT INTO exchange_watchlist (user_id, exchange_id, exchange_name, exchange_logo)"
-        " VALUES (?, ?, ?, ?)",
+        " VALUES (%s, %s, %s, %s)",
         (user_id, exchange_id, exchange_name, exchange_logo)
     )
     conn.commit()
@@ -2409,7 +2470,7 @@ def api_watchlist_exchanges():
     conn   = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT exchange_id FROM exchange_watchlist WHERE user_id=?",
+        "SELECT exchange_id FROM exchange_watchlist WHERE user_id=%s",
         (session["user_id"],)
     )
     ids = [r["exchange_id"] for r in cursor.fetchall()]

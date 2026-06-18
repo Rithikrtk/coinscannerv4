@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn application:app --workers 1 --timeout 120 --bind 0.0.0.0:$PORT
+    startCommand: gunicorn app:app --workers 1 --timeout 120 --bind 0.0.0.0:$PORT
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
@@ -29,20 +29,18 @@ services:
         sync: false
       - key: COINDCX_SECRET
         sync: false
-      - key: FAST2SMS_API_KEY
+      - key: MSG91_API_KEY
         sync: false
-      - key: TELESIGN_CUSTOMER_ID
+      - key: MSG91_SENDER_ID
         sync: false
-      - key: TELESIGN_API_KEY
+      - key: MSG91_WIDGET_ID
         sync: false
-      - key: AWS_REGION
+      - key: MSG91_TOKEN_AUTH
         sync: false
-      - key: AWS_SES_FROM_EMAIL
+      - key: REDIS_URL
         sync: false
-      - key: EMAIL_PROVIDER
-        value: resend
-      - key: SMS_OTP_PROVIDER
-        value: fast2sms
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
 
 databases:
   - name: coin-scanner-db

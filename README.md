@@ -191,14 +191,15 @@ Your `.env` file should look like this:
 SECRET_KEY=your-very-long-random-secret-key-here
 NEWS_API_KEY=pub_7c5030553f694cd78f8ac22e82c658eb
 RESEND_API_KEY=your-resend-api-key-here
-SMS_OTP_PROVIDER=telesign
-TELESIGN_CUSTOMER_ID=your-telesign-customer-id
-TELESIGN_API_KEY=your-telesign-api-key
+MSG91_API_KEY=your-msg91-api-key-here
+MSG91_SENDER_ID=MSGIND
+MSG91_WIDGET_ID=your-msg91-widget-id
+MSG91_TOKEN_AUTH=your-msg91-token-auth
 ```
 
-Use `RESEND_API_KEY` to enable email OTP delivery via Resend. If it is not set, email verification OTPs are printed to the terminal for development.
+Use `RESEND_API_KEY` to enable email OTP delivery via Resend. If it is not set, email OTPs are printed to the terminal for development.
 
-Use `SMS_OTP_PROVIDER=fast2sms` to send OTPs via Fast2SMS, or `SMS_OTP_PROVIDER=telesign` to send via Telesign. If you use Telesign, set `TELESIGN_CUSTOMER_ID` and `TELESIGN_API_KEY`; if you use Fast2SMS, set `FAST2SMS_API_KEY`.
+Use `MSG91_API_KEY` to enable SMS OTP delivery via MSG91. If it is not set, SMS OTPs are printed to the terminal for development.
 
 **Generate a secure SECRET_KEY:**
 ```bash
@@ -233,16 +234,17 @@ The recommended AWS setup for this app is:
 ```bash
 SECRET_KEY=your-long-random-secret
 DATABASE_URL=postgresql://USER:PASSWORD@RDS-ENDPOINT:5432/coinscanner
-EMAIL_PROVIDER=aws_ses
-AWS_REGION=us-east-1
-AWS_SES_FROM_EMAIL=noreply@your-domain.com
 FLASK_ENV=production
+MSG91_API_KEY=your-msg91-api-key-here
+MSG91_SENDER_ID=MSGIND
+MSG91_WIDGET_ID=your-msg91-widget-id
+MSG91_TOKEN_AUTH=your-msg91-token-auth
 SESSION_COOKIE_SECURE=true
 ```
 
 ### Deployment notes
 
-The app already runs under Gunicorn via the existing `Procfile` (`gunicorn application:app --workers 1 --timeout 120 --bind 0.0.0.0:$PORT`). Behind an AWS load balancer, `ProxyFix` lets Flask trust `X-Forwarded-Proto`, so secure cookies and HSTS behave correctly.
+The app already runs under Gunicorn via the existing `Procfile` (`gunicorn app:app --workers 1 --timeout 120 --bind 0.0.0.0:$PORT`). Behind an AWS load balancer, `ProxyFix` lets Flask trust `X-Forwarded-Proto`, so secure cookies and HSTS behave correctly.
 
 For the database, keep SQLite for local development and point `DATABASE_URL` at RDS in AWS. The database layer automatically switches to PostgreSQL when that variable is set.
 ```
@@ -281,11 +283,10 @@ For trial and error, Render is the fastest path because it can provision the web
     - `RESEND_API_KEY`
     - `COINDCX_API_KEY`
     - `COINDCX_SECRET`
-    - `FAST2SMS_API_KEY`
-    - `TELESIGN_CUSTOMER_ID`
-    - `TELESIGN_API_KEY`
-    - `AWS_REGION`
-    - `AWS_SES_FROM_EMAIL`
+    - `MSG91_API_KEY`
+    - `MSG91_SENDER_ID`
+    - `MSG91_WIDGET_ID`
+    - `MSG91_TOKEN_AUTH`
 6. You can leave those blank during initial deployment and add them later without redeploying the whole app.
 
 If you prefer manual setup instead of Blueprint, use:
@@ -319,13 +320,10 @@ git push heroku main
 | `NEWS_API_KEY` | ⚠️ Recommended | Your newsdata.io API key. News page shows empty without it. |
 | `RESEND_API_KEY` | ⚠️ Recommended | Resend API key for email OTP delivery on signup and password reset. If not set, email OTPs are printed to terminal. |
 | `EMAIL_FROM_ADDRESS` | ⚠️ Optional | Sender address for OTP emails. Use `onboarding@resend.dev` for initial Render testing. |
-| `EMAIL_PROVIDER` | ⚠️ Optional | `resend` (default) or `aws_ses`. Chooses which service sends OTP emails. |
-| `AWS_REGION` | ⚠️ Optional | AWS region for SES, such as `us-east-1`. Used when `EMAIL_PROVIDER=aws_ses`. |
-| `AWS_SES_FROM_EMAIL` | ⚠️ Optional | Verified SES sender address used for OTP emails. |
-| `SMS_OTP_PROVIDER` | ⚠️ Recommended | `fast2sms` or `telesign`. Controls SMS OTP delivery provider. |
-| `FAST2SMS_API_KEY` | ⚠️ Recommended | Fast2SMS API key for SMS OTP delivery. Used if provider is `fast2sms`. |
-| `TELESIGN_CUSTOMER_ID` | ⚠️ Recommended | Telesign customer ID for SMS OTP delivery. Used if provider is `telesign`. |
-| `TELESIGN_API_KEY` | ⚠️ Recommended | Telesign API key for SMS OTP delivery. Used if provider is `telesign`. |
+| `MSG91_API_KEY` | ⚠️ Recommended | MSG91 API key for SMS OTP delivery. |
+| `MSG91_SENDER_ID` | ⚠️ Optional | Sender ID approved in your MSG91 account. Defaults to `MSGIND`. |
+| `MSG91_WIDGET_ID` | ⚠️ Optional | MSG91 widget ID for the client-side verify-phone flow. |
+| `MSG91_TOKEN_AUTH` | ⚠️ Optional | MSG91 token auth for the client-side widget. |
 
 ---
 
